@@ -151,7 +151,8 @@ def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False
 def collect_results(data, results, outputs, ki, allz=False):
     outnames = list(outputs.keys())
     endz = None if allz else -1
-    logger.debug("Computing results for k indices: {}".format(ki[:-1]))
+    #logger.debug("Computing results for k indices: {}".format(ki[:-1]))
+    print("Computing results for k indices: {}".format(ki[:-1]))
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
@@ -167,6 +168,7 @@ def collect_results(data, results, outputs, ki, allz=False):
 def k_split_run_dataslice(
     func, data, k_indices_array, splitvars_values, outputs, grid, allz=False
 ):
+    print(splitvars_values)
     num_k = grid.npz
     grid_data = cp.deepcopy(grid.data_fields)
     for ki in k_indices_array:

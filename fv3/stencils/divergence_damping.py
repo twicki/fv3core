@@ -175,7 +175,7 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
                 )
             )
             if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "x")
+                corners.fill_corners_2d(divg_d, grid, "B", "x", kstart=kstart, nk=nk)
             vc_from_divg(
                 divg_d,
                 grid.divg_u,
@@ -184,7 +184,7 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
                 domain=(nint + 1, njnt, nk),
             )
             if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "y")
+                corners.fill_corners_2d(divg_d, grid, "B", "y", kstart=kstart, nk=nk)
             uc_from_divg(
                 divg_d,
                 grid.divg_v,
@@ -193,7 +193,7 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
                 domain=(nint, njnt + 1, nk),
             )
             if fillc:
-                corners.fill_corners_dgrid(vc, uc, grid, True)
+                corners.fill_corners_dgrid(vc, uc, grid, True, kstart=kstart, nk=nk)
 
             redo_divg_d(
                 uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
@@ -253,7 +253,6 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
             domain=(grid.nic + 1, grid.njc + 1, nk)
         )
 
-    return vort, ke, delpc
 
 
 def damping_zero_order(u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk):

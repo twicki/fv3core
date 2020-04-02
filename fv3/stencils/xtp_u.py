@@ -57,50 +57,53 @@ def br_bl_corner(br: sd, bl: sd):
         br[1, 0, 0] = 0
 
 
-def compute(c, u, v, flux):
+def compute(c, u, v, flux, kstart=0, nk=None):
     # This is an input argument in the Fortran code, but is never called with anything but this namelist option
     grid = spec.grid
+    if nk is None:
+        nk = grid.npz - kstart
     iord = spec.namelist["hord_mt"]
     if iord != 5:
         raise Exception("Currently ytp_v is only supported for hord_mt == 5")
     is3 = grid.is_ - 1  # max(5, grid.is_ - 1)
     ie3 = grid.ie + 1  # min(grid.npx - 1, grid.ie+1)
-    tmp_origin = (is3, grid.js, 0)
+    tmp_origin = (is3, grid.js, kstart)
     bl = utils.make_storage_from_shape(v.shape, tmp_origin)
     br = utils.make_storage_from_shape(v.shape, tmp_origin)
+    corner_domain = (1, 1, nk)
     if iord < 8:
 
         al = compute_al(u, grid.dx, iord, is3, ie3 + 1, grid.js, grid.je + 1)
 
-        # get_flux_u_stencil_old(u, c, al, grid.rdx, flux, iord, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc + 1, grid.npz))
+        # get_flux_u_stencil_old(u, c, al, grid.rdx, flux, iord, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc + 1, nk))
 
         br_bl_main(
             u,
             al,
             bl,
             br,
-            origin=(is3, grid.js, 0),
-            domain=(ie3 - is3 + 1, grid.njc + 1, grid.npz),
+            origin=(is3, grid.js, kstart),
+            domain=(ie3 - is3 + 1, grid.njc + 1, nk),
         )
 
         if grid.sw_corner:
             br_bl_corner(
-                br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.is_ - 1, grid.js, kstart), domain=corner_domain
             )
         if grid.se_corner:
             br_bl_corner(
-                br, bl, origin=(grid.ie, grid.js, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.ie, grid.js, kstart), domain=corner_domain
             )
         if grid.nw_corner:
             br_bl_corner(
                 br,
                 bl,
-                origin=(grid.is_ - 1, grid.je + 1, 0),
-                domain=grid.corner_domain(),
+                origin=(grid.is_ - 1, grid.je + 1, kstart),
+                domain=corner_domain,
             )
         if grid.ne_corner:
             br_bl_corner(
-                br, bl, origin=(grid.ie, grid.je + 1, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.ie, grid.je + 1, kstart), domain=corner_domain
             )
 
         get_flux_u_stencil(
@@ -113,5 +116,5 @@ def compute(c, u, v, flux):
             flux,
             iord,
             origin=grid.compute_origin(),
-            domain=(grid.nic + 1, grid.njc + 1, grid.npz),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
         )

@@ -4,8 +4,6 @@ import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
-origin = utils.origin
-
 
 @utils.stencil()
 def heat_diss(
@@ -24,7 +22,9 @@ def heat_diss(
         diss_est[0, 0, 0] = heat_source
 
 
-def compute(fx2, fy2, w, dd8, dw, heat_source, diss_est):
+def compute(fx2, fy2, w, dd8, dw, heat_source, diss_est, kstart=0, nk=None):
+    if nk is None:
+        nk = spec.grid.npz - kstart
     heat_diss(
         fx2,
         fy2,
@@ -34,6 +34,6 @@ def compute(fx2, fy2, w, dd8, dw, heat_source, diss_est):
         diss_est,
         dw,
         dd8,
-        origin=origin,
-        domain=spec.grid.domain_shape_compute(),
+        origin=(spec.grid.is_, spec.grid.js, kstart),
+        domain=(spec.grid.nic, spec.grid.njc, nk)
     )

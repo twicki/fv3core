@@ -17,7 +17,9 @@ def flux_capacitor(
         yflux = yflux + fy
 
 
-def compute(cx, cy, xflux, yflux, crx_adv, cry_adv, fx, fy):
+def compute(cx, cy, xflux, yflux, crx_adv, cry_adv, fx, fy, kstart=0, nk=None):
+    if nk is None:
+        nk = spec.grid.npz - kstart
     # this overcomputes, could split into 2 stencils for x and y directions if this is an issue
     flux_capacitor(
         cx,
@@ -28,6 +30,6 @@ def compute(cx, cy, xflux, yflux, crx_adv, cry_adv, fx, fy):
         cry_adv,
         fx,
         fy,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_standard(),
+        origin=(spec.grid.isd, spec.grid.jsd, kstart),
+        domain=(spec.grid.nid, spec.grid.njd, nk)
     )

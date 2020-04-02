@@ -19,26 +19,30 @@ def volume_mean_relative_vorticity(ut: sd, vt: sd, rarea: sd, wk: sd):
         wk[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
-def compute(u, v, ut, vt, wk):
+def compute(u, v, ut, vt, wk, kstart=0, nk=None):
+    grid = spec.grid
+    if nk is None:
+        nk = grid.npz - kstart
+    default_origin = (grid.isd, grid.jsd, kstart)
     vorticity(
         u,
-        spec.grid.dx,
+        grid.dx,
         vt,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_y(),
+        origin=default_origin,
+        domain=(grid.nid, grid.njd + 1, nk),
     )
     vorticity(
         v,
-        spec.grid.dy,
+        grid.dy,
         ut,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_x(),
+        origin=default_origin,
+        domain=(grid.nid + 1, grid.njd, nk),
     )
     volume_mean_relative_vorticity(
         ut,
         vt,
-        spec.grid.rarea,
+        grid.rarea,
         wk,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_standard(),
+        origin=default_origin,
+        domain=(grid.nid, grid.njd, nk),
     )

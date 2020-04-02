@@ -47,7 +47,7 @@ def flux_component(gx, gy, rarea):
 def flux_integral(w, delp, gx, gy, rarea):
     return w * delp + flux_component(gx, gy, rarea)
 
- 
+
 @utils.stencil()
 def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
     with computation(PARALLEL), interval(...):
@@ -358,7 +358,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, compute_origin, d
         delnflux.compute_no_sg(
             w, fx2, fy2, column_namelist["nord_w"], damp4, d2=wk, kstart=kstart, nk=nk
         )
-        heatdiss.compute(fx2, fy2, w, dd8, dw, heat_s, diss_e, kstart=kstart, nk=nk)
+        heatdiss.compute(fx2, fy2, w, dd8, dw, heat_s, diss_e)
     return dw, wk
 
 
@@ -390,7 +390,7 @@ def d_sw(
     fy = utils.make_storage_from_shape(shape, compute_origin)
     gx = utils.make_storage_from_shape(shape, compute_origin)
     gy = utils.make_storage_from_shape(shape, compute_origin)
-    ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt, kstart=kstart, nk=nk)
+    ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)#, kstart=kstart, nk=nk)
 
     fvtp2d.compute_no_sg(
         delp, crx, cry,
@@ -468,9 +468,9 @@ def d_sw(
 
     dt5 = 0.5 * dt
     dt4 = 0.25 * dt
-    vbke.compute(uc, vc, vt, vb, dt5, dt4, kstart=kstart, nk=nk)
+    vbke.compute(uc, vc, vt, vb, dt5, dt4,  kstart=kstart, nk=nk,)
 
-    ytp_v.compute(vb, u, v, ub, kstart=kstart, nk=nk)
+    ytp_v.compute(vb, u, v, ub,  kstart=kstart, nk=nk,)
 
     basic.multiply_stencil(
         vb, ub, ke,
@@ -501,7 +501,7 @@ def d_sw(
         domain=domain_shape_compute,
     )
 
-    divdamp.compute(
+    vort, ke, delpc =divdamp.compute(
         u, v, va, ptc, vort, ua,
         divgd, vc, uc, delpc, ke, wk,
         column_namelist["d2_divg"], dt,
@@ -512,7 +512,7 @@ def d_sw(
         ub_from_vort(
             vort, ub,
             origin=compute_origin,
-            domain=(grid().nic, grid().njc, nk),
+            domain=domain_shape_compute_y,
         )
         vb_from_vort(
             vort, vb,

@@ -25,8 +25,10 @@ def x_edge(vt: sd, vb: sd, dt4: float):
         vb[0, 0, 0] = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
 
 
-def compute(uc, vc, vt, vb, dt5, dt4):
+def compute(uc, vc, vt, vb, dt5, dt4, kstart=0, nk=None):
     grid = spec.grid
+    if nk is None:
+        nk = grid.npz - kstart
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js2 = grid.js + 1 if grid.south_edge else grid.js
     is2 = grid.is_ + 1 if grid.west_edge else grid.is_
@@ -35,8 +37,8 @@ def compute(uc, vc, vt, vb, dt5, dt4):
     jdiff = je1 - js2 + 1
     idiff = ie1 - is2 + 1
     if spec.namelist["grid_type"] < 3 and not grid.nested:
-        domain_y = (grid.nic + 1, 1, grid.npz)
-        domain_x = (1, jdiff, grid.npz)
+        domain_y = (grid.nic + 1, 1, nk)
+        domain_x = (1, jdiff, nk)
         if grid.south_edge:
             y_edge(vt, vb, dt5=dt5, origin=grid.compute_origin(), domain=domain_y)
         main_vb(
@@ -46,15 +48,15 @@ def compute(uc, vc, vt, vb, dt5, dt4):
             grid.rsina,
             vb,
             dt5=dt5,
-            origin=(is2, js2, 0),
-            domain=(idiff, jdiff, grid.npz),
+            origin=(is2, js2, kstart),
+            domain=(idiff, jdiff, nk),
         )
         if grid.west_edge:
-            x_edge(vt, vb, dt4=dt4, origin=(grid.is_, js2, 0), domain=domain_x)
+            x_edge(vt, vb, dt4=dt4, origin=(grid.is_, js2, kstart), domain=domain_x)
         if grid.east_edge:
-            x_edge(vt, vb, dt4=dt4, origin=(grid.ie + 1, js2, 0), domain=domain_x)
+            x_edge(vt, vb, dt4=dt4, origin=(grid.ie + 1, js2, kstart), domain=domain_x)
         if grid.north_edge:
-            y_edge(vt, vb, dt5=dt5, origin=(grid.is_, grid.je + 1, 0), domain=domain_y)
+            y_edge(vt, vb, dt5=dt5, origin=(grid.is_, grid.je + 1, kstart), domain=domain_y)
     else:
         # should be a stencil like vb = dt5 * (vc[-1, 0,0] + vc)
         raise Exception("unimplemented grid_type >= 3 or nested")
