@@ -482,79 +482,66 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
 
 
 @utils.stencil()
-def a2b_ord4(qin: sd, qout: sd, dxa: sd, edge_w: sd, edge_e: sd):
-    from __splitters__ import istart, iend, js2, je
-    # def compute_qout_edges
-    ## compute_qout_x_edges(qin, qout, kstart, nk)
-    with computation(PARALLEL), interval(...):
-        # with parallel(region[istart:istart+1, js2:je]):
-        #     q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-        #     qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+def compute_qout_x_edges(qin: sd, qout: sd, dxa: sd, edge_e: sd, edge_w: sd):
+    from __splitters__ import istart, iend
 
-        with parallel(region[iend+1:iend+2, :]):
+    ## compute_qout_x_edges
+    with computation(PARALLEL), interval(...):
+        # West edge
+        with parallel(region[istart : istart + 1, :]):
+            q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
+            qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        # East edge
+        with parallel(region[iend + 1 : iend + 2, :]):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
             qout[0, 0, 0] = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
 
 
-def a2b_ord4_driver(qin, qout, kstart, nk):
+@utils.stencil()
+def compute_qout_y_edges(qin: sd, qout: sd, dya: sd, edge_s: sd, edge_n: sd):
+    from __splitters__ import j_start, j_end
+
+    ## compute_qout_y_edges
+    # south_edge
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_start : j_start + 1]):
+            q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
+            qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+
+    # north edge
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_end + 1 : j_end + 2]):
+            q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
+            qout[0, 0, 0] = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
+
+
+def compute_qout_edges_stencil(qin, qout, kstart, nk):
+    is2 = grid().is_ + 1 if grid().west_edge else grid().is_
+    ie1 = grid().ie if grid().east_edge else grid().ie + 1
+    di2 = ie1 - is2 + 1
     js2 = grid().js + 1 if grid().south_edge else grid().js
     je1 = grid().je if grid().north_edge else grid().je + 1
     dj2 = je1 - js2 + 1
-    temp = utils.make_storage_from_shape(qout.shape, origin=grid().default_origin())
-    temp.data[:] = qout.data[:]
-    # setup
-    assert np.allclose(qout, temp, atol=1e-16)
-
-    if grid().west_edge:
-        qout_x_edge(
-            qin,
-            grid().dxa,
-            grid().edge_w,
-            qout,
-            origin=(grid().is_, js2, kstart),
-            domain=(1, dj2, nk),
-        )
-    if grid().west_edge:
-        qout_x_edge(
-            qin,
-            grid().dxa,
-            grid().edge_w,
-            temp,
-            origin=(grid().is_, js2, kstart),
-            domain=(1, dj2, nk),
-        )
-    # East edge
-    assert np.allclose(qout, temp, atol=1e-16)
-
-    if grid().east_edge:
-        qout_x_edge(
-            qin,
-            grid().dxa,
-            grid().edge_e,
-            temp,
-            origin=(grid().ie + 1, js2, kstart),
-            domain=(1, dj2, nk),
-        )
-    a2b_ord4(qin, qout, grid().dxa, grid().edge_w, grid().edge_e,
+    compute_qout_x_edges(
+        qin,
+        qout,
+        grid().dxa,
+        grid().edge_e,
+        grid().edge_w,
         origin=(grid().is_, grid().js + 1, kstart),
         domain=(grid().ie - grid().is_ + 2, dj2, nk),
-        splitters={
-            'istart': grid().is_ - grid().is_,
-            'iend': grid().ie - grid().is_,
-            'js2': js2 - grid().js,
-            'je': je1- grid().js,
-        }
+        splitters={"istart": grid().is_ - grid().is_, "iend": grid().ie - grid().is_,},
     )
-    # print("+++++++++")
-    # print(temp2[:,:,3])
-    # print("---------")
-    # print(temp[:,:,3])
-    # print("+++++++++")
-    # print((np.abs(temp.data[:] - qout.data[:]) > 1e-16)[:,:,3])
-    # print(np.where(np.abs(temp.data[:] - qout.data[:]) > 1e-16))
-    assert np.allclose(qout, temp, atol=1e-16)
-
-    compute_qout_y_edges(qin, qout, kstart, nk)
+    compute_qout_y_edges(
+        qin,
+        qout,
+        grid().dya,
+        grid().edge_s,
+        grid().edge_n,
+        origin=(grid().is_ + 1, grid().js, kstart),
+        domain=(di2, grid().je - grid().js + 2, nk),
+        splitters={"j_start": grid().js - grid().js, "j_end": grid().je - grid().js,},
+    )
 
 
 def compute(qin, qout, kstart=0, nk=None, replace=False):
@@ -562,7 +549,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         nk = grid().npz - kstart
     extrapolate_corners(qin, qout, kstart, nk)
     if spec.namelist["grid_type"] < 3:
-        a2b_ord4_driver(qin, qout, kstart, nk)
+        compute_qout_edges_stencil(qin, qout, kstart, nk)
         # compute_qout_edges(qin, qout, kstart, nk)
         qx = compute_qx(qin, qout, kstart, nk)
         qy = compute_qy(qin, qout, kstart, nk)
