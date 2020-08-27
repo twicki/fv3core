@@ -25,12 +25,6 @@ def grid():
 
 
 @utils.stencil()
-def ppm_volume_mean_x(qin: sd, qx: sd):
-    with computation(PARALLEL), interval(...):
-        qx[0, 0, 0] = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
-
-
-@utils.stencil()
 def ppm_volume_mean_y(qin: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
@@ -119,50 +113,6 @@ def qout_y_edge(qin: sd, dya: sd, edge_s: sd, qout: sd):
     with computation(PARALLEL), interval(...):
         q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-
-
-@utils.stencil()
-def qx_edge_west(qin: sd, dxa: sd, qx: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[1, 0, 0] / dxa
-        g_ou = dxa[-2, 0, 0] / dxa[-1, 0, 0]
-        qx[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
-        )
-        # This does not work, due to access of qx that is changing above
-        # qx[1, 0, 0] = (3.0 * (g_in * qin + qin[1, 0, 0]) - (g_in * qx + qx[2, 0, 0])) / (2.0 + 2.0 * g_in)
-
-
-@utils.stencil()
-def qx_edge_west2(qin: sd, dxa: sd, qx: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa / dxa[-1, 0, 0]
-        qx0 = qx
-        qx = (
-            3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx0[-1, 0, 0] + qx0[1, 0, 0])
-        ) / (2.0 + 2.0 * g_in)
-
-
-@utils.stencil()
-def qx_edge_east(qin: sd, dxa: sd, qx: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[-2, 0, 0] / dxa[-1, 0, 0]
-        g_ou = dxa[1, 0, 0] / dxa
-        qx[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
-        )
-
-
-@utils.stencil()
-def qx_edge_east2(qin: sd, dxa: sd, qx: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[-1, 0, 0] / dxa
-        qx0 = qx
-        qx = (
-            3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx0[1, 0, 0] + qx0[-1, 0, 0])
-        ) / (2.0 + 2.0 * g_in)
 
 
 @utils.stencil()
@@ -303,11 +253,6 @@ def extrapolate_corners(qin, qout, kstart, nk):
     extrapolate_corner_qout(qin, qout, grid().is_, grid().je + 1, kstart, nk, "nw")
 
 
-def compute_qout_edges(qin, qout, kstart, nk):
-    compute_qout_x_edges(qin, qout, kstart, nk)
-    compute_qout_y_edges(qin, qout, kstart, nk)
-
-
 def compute_qout_x_edges(qin, qout, kstart, nk):
     # qout bounds
     # avoid running west/east computation on south/north tile edges, since they'll be overwritten.
@@ -357,38 +302,6 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
             origin=(is2, grid().je + 1, kstart),
             domain=(di2, 1, nk),
         )
-
-
-def compute_qx(qin, qout, kstart, nk):
-    qx = utils.make_storage_from_shape(
-        qin.shape, origin=(grid().is_, grid().jsd, kstart)
-    )
-    # qx bounds
-    # avoid running center-domain computation on tile edges, since they'll be overwritten.
-    js = grid().js if grid().south_edge else grid().js - 2
-    je = grid().je if grid().north_edge else grid().je + 2
-    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
-    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
-    dj = je - js + 1
-    # qx interior
-    ppm_volume_mean_x(qin, qx, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk))
-
-    # qx edges
-    if grid().west_edge:
-        qx_edge_west(
-            qin, grid().dxa, qx, origin=(grid().is_, js, kstart), domain=(1, dj, nk)
-        )
-        qx_edge_west2(
-            qin, grid().dxa, qx, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
-        )
-    if grid().east_edge:
-        qx_edge_east(
-            qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk)
-        )
-        qx_edge_east2(
-            qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
-    return qx
 
 
 def compute_qy(qin, qout, kstart, nk):
@@ -544,15 +457,134 @@ def compute_qout_edges_stencil(qin, qout, kstart, nk):
     )
 
 
+@utils.stencil()
+def qx_edge_west_splitters(qin: sd, dxa: sd, qx: sd):
+    from __splitters__ import i_start, i_end
+
+    # ppm_volume_mean_x
+    # //============================================================================
+    with computation(PARALLEL), interval(...):
+        qx[0, 0, 0] = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+    with computation(PARALLEL), interval(...):
+        # qx_edge_west_
+        # //========================================================================
+        with parallel(region[i_start : i_start + 1, :]):
+            g_in = dxa[1, 0, 0] / dxa
+            g_ou = dxa[-2, 0, 0] / dxa[-1, 0, 0]
+            qx[0, 0, 0] = 0.5 * (
+                ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
+            )
+        # //========================================================================
+
+        # qx_edge_west2
+        # //========================================================================
+        # TODO: This a workaround, do we want that?
+        with parallel(region[i_start : i_start + 3, :]):
+            g_in = dxa / dxa[-1, 0, 0]
+            qx0 = qx
+        with parallel(region[i_start + 1 : i_start + 2, :]):
+            qx = (
+                3.0 * (g_in * qin[-1, 0, 0] + qin)
+                - (g_in * qx0[-1, 0, 0] + qx0[1, 0, 0])
+            ) / (2.0 + 2.0 * g_in)
+        # //========================================================================
+    ## qx_edge_east_stencil
+    with computation(PARALLEL), interval(...):
+        # qx_edge_east
+        # //========================================================================
+        with parallel(region[i_end + 1 : i_end + 2, :]):
+            g_in = dxa[-2, 0, 0] / dxa[-1, 0, 0]
+            g_ou = dxa[1, 0, 0] / dxa
+            qx[0, 0, 0] = 0.5 * (
+                ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
+            )
+        # //========================================================================
+
+        # qx_edge_east2
+        # //========================================================================
+        # TODO: This a workaround, do we want that?
+        with parallel(region[i_end - 1 : i_end + 2, :]):
+            qx0 = qx
+        with parallel(region[i_end : i_end + 1, :]):
+            g_in = dxa[-1, 0, 0] / dxa
+            qx = (
+                3.0 * (qin[-1, 0, 0] + g_in * qin)
+                - (g_in * qx0[1, 0, 0] + qx0[-1, 0, 0])
+            ) / (2.0 + 2.0 * g_in)
+        # //========================================================================
+
+
+def compute_qx_stencil(qin, qout, kstart, nk, qx):
+    # qx bounds
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
+    js = grid().js if grid().south_edge else grid().js - 2
+    je = grid().je if grid().north_edge else grid().je + 2
+    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
+    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
+    dj = je - js + 1
+    di = ie - is_ + 1
+    qx_edge_west_splitters(
+        qin,
+        grid().dxa,
+        qx,
+        origin=(grid().is_, js, kstart),
+        domain=(di + 3, dj, nk),
+        splitters={
+            "i_start": grid().is_ - grid().is_,
+            "i_end": grid().ie - grid().is_,
+        },
+    )
+
+
+def compute_qy_stencil(qin, qout, kstart, nk, qy):
+    # qy bounds
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
+    js = grid().js + 2 if grid().south_edge else grid().js
+    je = grid().je - 1 if grid().north_edge else grid().je + 1
+    is_ = grid().is_ if grid().west_edge else grid().is_ - 2
+    ie = grid().ie if grid().east_edge else grid().ie + 2
+    di = ie - is_ + 1
+    # qy interior
+    ppm_volume_mean_y(qin, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
+    # qy edges
+    if grid().south_edge:
+        qy_edge_south(
+            qin, grid().dya, qy, origin=(is_, grid().js, kstart), domain=(di, 1, nk)
+        )
+        qy_edge_south2(
+            qin, grid().dya, qy, origin=(is_, grid().js + 1, kstart), domain=(di, 1, nk)
+        )
+    if grid().north_edge:
+        qy_edge_north(
+            qin, grid().dya, qy, origin=(is_, grid().je + 1, kstart), domain=(di, 1, nk)
+        )
+        qy_edge_north2(
+            qin, grid().dya, qy, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
+        )
+
+
 def compute(qin, qout, kstart=0, nk=None, replace=False):
     if nk == None:
         nk = grid().npz - kstart
     extrapolate_corners(qin, qout, kstart, nk)
     if spec.namelist["grid_type"] < 3:
-        compute_qout_edges_stencil(qin, qout, kstart, nk)
         # compute_qout_edges(qin, qout, kstart, nk)
-        qx = compute_qx(qin, qout, kstart, nk)
-        qy = compute_qy(qin, qout, kstart, nk)
+        compute_qout_edges_stencil(qin, qout, kstart, nk)
+
+        # qx = compute_qx(qin, qout, kstart, nk)
+        qx = utils.make_storage_from_shape(
+            qin.shape, origin=(grid().is_, grid().jsd, kstart)
+        )
+        compute_qx_stencil(qin, qout, kstart, nk, qx)
+
+        # qy = compute_qy(qin, qout, kstart, nk)
+        qy = utils.make_storage_from_shape(
+            qin.shape, origin=(grid().isd, grid().js, kstart)
+        )
+        compute_qy_stencil(qin, qout, kstart, nk, qy)
+
         qxx = compute_qxx(qx, qout, kstart, nk)
         qyy = compute_qyy(qy, qout, kstart, nk)
         compute_qout(qxx, qyy, qout, kstart, nk)
