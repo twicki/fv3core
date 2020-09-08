@@ -24,60 +24,14 @@ def grid():
     return spec.grid
 
 
-@utils.stencil()
-def ppm_volume_mean_y(qin: sd, qy: sd):
-    with computation(PARALLEL), interval(...):
-        qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
-
-
 @gtscript.function
 def lagrange_y_func(qx):
     return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
 
 
-@utils.stencil()
-def lagrange_interpolation_y(qx: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_y_func(qx)
-
-
 @gtscript.function
 def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
-
-
-@utils.stencil()
-def lagrange_interpolation_x(qy: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_x_func(qy)
-
-
-@utils.stencil()
-def cubic_interpolation_south(qx: sd, qout: sd, qxx: sd):
-    with computation(PARALLEL), interval(...):
-        qxx0 = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx0[0, 1, 0])
-
-
-@utils.stencil()
-def cubic_interpolation_north(qx: sd, qout: sd, qxx: sd):
-    with computation(PARALLEL), interval(...):
-        qxx0 = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx0[0, -1, 0])
-
-
-@utils.stencil()
-def cubic_interpolation_west(qy: sd, qout: sd, qyy: sd):
-    with computation(PARALLEL), interval(...):
-        qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy0[1, 0, 0])
-
-
-@utils.stencil()
-def cubic_interpolation_east(qy: sd, qout: sd, qyy: sd):
-    with computation(PARALLEL), interval(...):
-        qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
 
 
 @utils.stencil()
@@ -92,15 +46,6 @@ def vort_adjust(qxx: sd, qyy: sd, qout: sd):
         qout[0, 0, 0] = 0.5 * (qxx + qyy)
 
 
-# @utils.stencil()
-# def x_edge_q2_west(qin: sd, dxa: sd, q2: sd):
-#    with computation(PARALLEL), interval(...):
-#        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-
-# @utils.stencil()
-# def x_edge_qout_west_q2(edge_w: sd, q2: sd, qout: sd):
-#    with computation(PARALLEL), interval(...):
-#        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 @utils.stencil()
 def qout_x_edge(qin: sd, dxa: sd, edge_w: sd, qout: sd):
     with computation(PARALLEL), interval(...):
@@ -113,48 +58,6 @@ def qout_y_edge(qin: sd, dya: sd, edge_s: sd, qout: sd):
     with computation(PARALLEL), interval(...):
         q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-
-
-@utils.stencil()
-def qy_edge_south(qin: sd, dya: sd, qy: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, 1, 0] / dya
-        g_ou = dya[0, -2, 0] / dya[0, -1, 0]
-        qy[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
-        )
-
-
-@utils.stencil()
-def qy_edge_south2(qin: sd, dya: sd, qy: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dya / dya[0, -1, 0]
-        qy0 = qy
-        qy = (
-            3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy0[0, -1, 0] + qy0[0, 1, 0])
-        ) / (2.0 + 2.0 * g_in)
-
-
-@utils.stencil()
-def qy_edge_north(qin: sd, dya: sd, qy: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, -2, 0] / dya[0, -1, 0]
-        g_ou = dya[0, 1, 0] / dya
-        qy[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
-        )
-
-
-@utils.stencil()
-def qy_edge_north2(qin: sd, dya: sd, qy: sd):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, -1, 0] / dya
-        qy0 = qy
-        qy = (
-            3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy0[0, 1, 0] + qy0[0, -1, 0])
-        ) / (2.0 + 2.0 * g_in)
 
 
 def ec1_offsets(corner):
@@ -304,39 +207,7 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
         )
 
 
-def compute_qy(qin, qout, kstart, nk):
-    qy = utils.make_storage_from_shape(
-        qin.shape, origin=(grid().isd, grid().js, kstart)
-    )
-    # qy bounds
-    # avoid running center-domain computation on tile edges, since they'll be overwritten.
-    js = grid().js + 2 if grid().south_edge else grid().js
-    je = grid().je - 1 if grid().north_edge else grid().je + 1
-    is_ = grid().is_ if grid().west_edge else grid().is_ - 2
-    ie = grid().ie if grid().east_edge else grid().ie + 2
-    di = ie - is_ + 1
-    # qy interior
-    ppm_volume_mean_y(qin, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
-    # qy edges
-    if grid().south_edge:
-        qy_edge_south(
-            qin, grid().dya, qy, origin=(is_, grid().js, kstart), domain=(di, 1, nk)
-        )
-        qy_edge_south2(
-            qin, grid().dya, qy, origin=(is_, grid().js + 1, kstart), domain=(di, 1, nk)
-        )
-    if grid().north_edge:
-        qy_edge_north(
-            qin, grid().dya, qy, origin=(is_, grid().je + 1, kstart), domain=(di, 1, nk)
-        )
-        qy_edge_north2(
-            qin, grid().dya, qy, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
-        )
-    return qy
-
-
-def compute_qxx(qx, qout, kstart, nk):
-    qxx = utils.make_storage_from_shape(qx.shape, origin=grid().default_origin())
+def compute_qxx(qx, qout, kstart, nk, qxx):
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js
     je = grid().je - 1 if grid().north_edge else grid().je + 1
@@ -354,29 +225,6 @@ def compute_qxx(qx, qout, kstart, nk):
         cubic_interpolation_north(
             qx, qout, qxx, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
         )
-    return qxx
-
-
-def compute_qyy(qy, qout, kstart, nk):
-    qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
-    # avoid running center-domain computation on tile edges, since they'll be overwritten.
-    js = grid().js + 1 if grid().south_edge else grid().js
-    je = grid().je if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
-    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
-    dj = je - js + 1
-    lagrange_interpolation_x(
-        qy, qyy, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
-    )
-    if grid().west_edge:
-        cubic_interpolation_west(
-            qy, qout, qyy, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
-        )
-    if grid().east_edge:
-        cubic_interpolation_east(
-            qy, qout, qyy, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
-    return qyy
 
 
 def compute_qout(qxx, qyy, qout, kstart, nk):
@@ -398,7 +246,6 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
 def compute_qout_x_edges(qin: sd, qout: sd, dxa: sd, edge_e: sd, edge_w: sd):
     from __splitters__ import istart, iend
 
-    ## compute_qout_x_edges
     with computation(PARALLEL), interval(...):
         # West edge
         with parallel(region[istart : istart + 1, :]):
@@ -414,7 +261,6 @@ def compute_qout_x_edges(qin: sd, qout: sd, dxa: sd, edge_e: sd, edge_w: sd):
 def compute_qout_y_edges(qin: sd, qout: sd, dya: sd, edge_s: sd, edge_n: sd):
     from __splitters__ import j_start, j_end
 
-    ## compute_qout_y_edges
     # south_edge
     with computation(PARALLEL), interval(...):
         with parallel(region[:, j_start : j_start + 1]):
@@ -538,6 +384,57 @@ def compute_qx_stencil(qin, qout, kstart, nk, qx):
     )
 
 
+@utils.stencil()
+def ppm_volume_mean_y(qin: sd, dya: sd, qy: sd):
+    from __splitters__ import j_start, j_end
+
+    with computation(PARALLEL), interval(...):
+        qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+    # qy_edge_south
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_start : j_start + 1]):
+            g_in = dya[0, 1, 0] / dya
+            g_ou = dya[0, -2, 0] / dya[0, -1, 0]
+            qy[0, 0, 0] = 0.5 * (
+                ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
+            )
+    # qy_edge_south2
+    with computation(PARALLEL), interval(...):
+        # TODO: This a workaround, do we want that?
+        with parallel(region[:, j_start : j_start + 3]):
+            g_in = dya / dya[0, -1, 0]
+            qy0 = qy
+        with parallel(region[:, j_start + 1 : j_start + 2]):
+            qy = (
+                3.0 * (g_in * qin[0, -1, 0] + qin)
+                - (g_in * qy0[0, -1, 0] + qy0[0, 1, 0])
+            ) / (2.0 + 2.0 * g_in)
+
+    # qy_edge_north
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_end + 1 : j_end + 2]):
+            g_in = dya[0, -2, 0] / dya[0, -1, 0]
+            g_ou = dya[0, 1, 0] / dya
+            qy[0, 0, 0] = 0.5 * (
+                ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
+            )
+
+
+@utils.stencil()
+def qy_edge_north2(qin: sd, dya: sd, qy: sd):
+    from __splitters__ import j_start, j_end
+
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_end : j_end + 1]):
+            g_in = dya[0, -1, 0] / dya
+            qy0 = (
+                3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+            ) / (2.0 + 2.0 * g_in)
+            qy = qy0
+
+
 def compute_qy_stencil(qin, qout, kstart, nk, qy):
     # qy bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
@@ -547,22 +444,97 @@ def compute_qy_stencil(qin, qout, kstart, nk, qy):
     ie = grid().ie if grid().east_edge else grid().ie + 2
     di = ie - is_ + 1
     # qy interior
-    ppm_volume_mean_y(qin, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
-    # qy edges
-    if grid().south_edge:
-        qy_edge_south(
-            qin, grid().dya, qy, origin=(is_, grid().js, kstart), domain=(di, 1, nk)
+    ppm_volume_mean_y(
+        qin,
+        grid().dya,
+        qy,
+        origin=(is_, grid().js, kstart),
+        domain=(di, je - js + 6, nk),
+        splitters={"j_start": grid().js - grid().js, "j_end": grid().je - grid().js,},
+    )
+    # TODO: the stage analysis prevents these from being merged, do that as soon as this is possible
+    qy_edge_north2(
+        qin,
+        grid().dya,
+        qy,
+        origin=(is_, grid().js, kstart),
+        domain=(di, je - js + 6, nk),
+        splitters={"j_start": grid().js - grid().js, "j_end": grid().je - grid().js,},
+    )
+
+
+@utils.stencil()
+def lagrange_interpolation_y(qx: sd, qout: sd, qxx: sd):
+    from __splitters__ import j_start, j_end
+
+    with computation(PARALLEL), interval(...):
+        qxx = lagrange_y_func(qx)
+    # cubic_interpolation_south
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_start + 1 : j_start + 2]):
+            qxx0 = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
+            qxx = qxx0
+    # cubic interpolation north
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_end : j_end + 1]):
+            qxx0 = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+            qxx = qxx0
+
+
+def compute_qxx_stencil(qx, qout, kstart, nk, qxx):
+    is_ = grid().is_ + 1 if grid().west_edge else grid().is_
+    ie = grid().ie if grid().east_edge else grid().ie + 1
+    di = ie - is_ + 1
+    lagrange_interpolation_y(
+        qx,
+        qout,
+        qxx,
+        origin=(is_, grid().js, kstart),
+        domain=(di, grid().je - grid().js + 1, nk),
+        splitters={"j_start": grid().js - grid().js, "j_end": grid().je - grid().js,},
+    )
+
+
+@utils.stencil()
+def lagrange_interpolation_x(qy: sd, qout: sd):
+    with computation(PARALLEL), interval(...):
+        qout = lagrange_x_func(qy)
+
+
+@utils.stencil()
+def cubic_interpolation_west(qy: sd, qout: sd, qyy: sd):
+    with computation(PARALLEL), interval(...):
+        qyy0 = qyy
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy0[1, 0, 0])
+
+
+@utils.stencil()
+def cubic_interpolation_east(qy: sd, qout: sd, qyy: sd):
+    with computation(PARALLEL), interval(...):
+        qyy0 = qyy
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
+
+
+def compute_qyy(qy, qout, kstart, nk):
+    qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
+    js = grid().js + 1 if grid().south_edge else grid().js
+    je = grid().je if grid().north_edge else grid().je + 1
+    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
+    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
+    dj = je - js + 1
+    lagrange_interpolation_x(
+        qy, qyy, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
+    )
+    if grid().west_edge:
+        cubic_interpolation_west(
+            qy, qout, qyy, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
         )
-        qy_edge_south2(
-            qin, grid().dya, qy, origin=(is_, grid().js + 1, kstart), domain=(di, 1, nk)
+    if grid().east_edge:
+        cubic_interpolation_east(
+            qy, qout, qyy, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
         )
-    if grid().north_edge:
-        qy_edge_north(
-            qin, grid().dya, qy, origin=(is_, grid().je + 1, kstart), domain=(di, 1, nk)
-        )
-        qy_edge_north2(
-            qin, grid().dya, qy, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
-        )
+    return qyy
 
 
 def compute(qin, qout, kstart=0, nk=None, replace=False):
@@ -570,22 +542,22 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         nk = grid().npz - kstart
     extrapolate_corners(qin, qout, kstart, nk)
     if spec.namelist["grid_type"] < 3:
-        # compute_qout_edges(qin, qout, kstart, nk)
+
         compute_qout_edges_stencil(qin, qout, kstart, nk)
 
-        # qx = compute_qx(qin, qout, kstart, nk)
         qx = utils.make_storage_from_shape(
             qin.shape, origin=(grid().is_, grid().jsd, kstart)
         )
         compute_qx_stencil(qin, qout, kstart, nk, qx)
 
-        # qy = compute_qy(qin, qout, kstart, nk)
         qy = utils.make_storage_from_shape(
             qin.shape, origin=(grid().isd, grid().js, kstart)
         )
         compute_qy_stencil(qin, qout, kstart, nk, qy)
 
-        qxx = compute_qxx(qx, qout, kstart, nk)
+        qxx = utils.make_storage_from_shape(qx.shape, origin=grid().default_origin())
+        compute_qxx_stencil(qx, qout, kstart, nk, qxx)
+
         qyy = compute_qyy(qy, qout, kstart, nk)
         compute_qout(qxx, qyy, qout, kstart, nk)
         if replace:
