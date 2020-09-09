@@ -496,27 +496,22 @@ def compute_qxx_stencil(qx, qout, kstart, nk, qxx):
 
 
 @utils.stencil()
-def lagrange_interpolation_x(qy: sd, qout: sd):
+def lagrange_interpolation_x(qy: sd, qout: sd, qyy: sd):
+    from __splitters__ import i_start, i_end
+
     with computation(PARALLEL), interval(...):
-        qout = lagrange_x_func(qy)
-
-
-@utils.stencil()
-def cubic_interpolation_west(qy: sd, qout: sd, qyy: sd):
+        qyy = lagrange_x_func(qy)
     with computation(PARALLEL), interval(...):
-        qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy0[1, 0, 0])
-
-
-@utils.stencil()
-def cubic_interpolation_east(qy: sd, qout: sd, qyy: sd):
+        with parallel(region[i_start + 1 : i_start + 2, :]):
+            qyy0 = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
+            qyy = qyy0
     with computation(PARALLEL), interval(...):
         qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
+        with parallel(region[i_end : i_end + 1, :]):
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
 
 
-def compute_qyy(qy, qout, kstart, nk):
-    qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
+def compute_qyy_stencil(qy, qout, kstart, nk, qyy):
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 1 if grid().south_edge else grid().js
     je = grid().je if grid().north_edge else grid().je + 1
@@ -524,17 +519,16 @@ def compute_qyy(qy, qout, kstart, nk):
     ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
     dj = je - js + 1
     lagrange_interpolation_x(
-        qy, qyy, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
+        qy,
+        qout,
+        qyy,
+        origin=(grid().is_, js, kstart),
+        domain=(grid().ie - grid().is_ + 2, dj, nk),
+        splitters={
+            "i_start": grid().is_ - grid().is_,
+            "i_end": grid().ie - grid().is_,
+        },
     )
-    if grid().west_edge:
-        cubic_interpolation_west(
-            qy, qout, qyy, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
-        )
-    if grid().east_edge:
-        cubic_interpolation_east(
-            qy, qout, qyy, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
-    return qyy
 
 
 def compute(qin, qout, kstart=0, nk=None, replace=False):
@@ -558,7 +552,9 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         qxx = utils.make_storage_from_shape(qx.shape, origin=grid().default_origin())
         compute_qxx_stencil(qx, qout, kstart, nk, qxx)
 
-        qyy = compute_qyy(qy, qout, kstart, nk)
+        qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
+        compute_qyy_stencil(qy, qout, kstart, nk, qyy)
+
         compute_qout(qxx, qyy, qout, kstart, nk)
         if replace:
             cp.copy_stencil(
