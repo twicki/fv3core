@@ -258,7 +258,7 @@ def test_parallel_savepoint(
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
-    regression_file = '/test_data/regressions/regression_' + test_name + '_'+ + grid[0].rank + '.txt'
+    regression_file = '/test_data/regressions/regression_' + test_name + '_' + grid[0].rank + '.txt'
     fv3util.communicator.start_regression(regression_file)
     output = testobj.compute_parallel(input_data, communicator)
     fv3util.communicator.save_regression(regression_file)

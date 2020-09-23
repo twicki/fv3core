@@ -13,3 +13,6 @@ make get_test_data
 
 # The default of this set to 1 causes a segfault
 make run_tests_parallel TEST_ARGS="${ARGS}"
+
+echo `ls -lh ${TEST_DATA_HOST}/*.txt`
+echo `cat ${TEST_DATA_HOST}/regression*.txt`
