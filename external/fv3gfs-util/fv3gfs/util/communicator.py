@@ -46,7 +46,7 @@ def regress_arrays(*arrays):
     if DO_REGRESSION:
         current_hash = ""
         for array in arrays:
-            current_hash = hash(current_hash + array.tostring())
+            current_hash = hash(current_hash + array.decode("utf-8").tostring())
         global REGRESSION_INDEX
         if len(REGRESSION_DATA) > REGRESSION_INDEX:
             # check data
