@@ -44,9 +44,9 @@ def start_regression(filename: str):
 
 def regress_arrays(*arrays):
     if DO_REGRESSION:
-        current_hash = ""
+        current_hash = b''
         for array in arrays:
-            current_hash = hash(current_hash + array.decode("utf-8").tostring())
+            current_hash = hash(current_hash + array.tostring())
         global REGRESSION_INDEX
         if len(REGRESSION_DATA) > REGRESSION_INDEX:
             # check data
@@ -55,6 +55,7 @@ def regress_arrays(*arrays):
         else:
             # set data
             REGRESSION_DATA.append(current_hash)
+            REGRESSION_INDEX += 1
 
 
 def save_regression(filename):

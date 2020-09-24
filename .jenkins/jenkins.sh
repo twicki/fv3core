@@ -89,7 +89,7 @@ if grep -q "parallel" <<< "${script}"; then
 	    sed -i 's|cscsci|debug|g' ${scheduler_script}
 	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	    sed -i 's|<NTASKSPERNODE>|"24"|g' ${scheduler_script}
-	    sed -i 's|<CMD>|export CRAY_CUDA_MPS=1\n<CMD>|g' ${scheduler_script} 
+	    #sed -i 's|<CMD>|export CRAY_CUDA_MPS=1\n<CMD>|g' ${scheduler_script} 
 	fi
     fi
 fi
