@@ -277,17 +277,17 @@ def test_parallel_savepoint(
                 near0,
             )
             passing_names.append(failing_names.pop())
-    if len(failing_names) > 0:
-        out_filename = os.path.join(OUTDIR, f"{test_name}-{grid[0].rank}.nc")
-        try:
-            save_netcdf(
-                testobj, [input_data], [output], ref_data, failing_names, out_filename
-            )
-        except Exception as error:
-            print(error)
+    #if len(failing_names) > 0:
+    #    out_filename = os.path.join(OUTDIR, f"{test_name}-{grid[0].rank}.nc")
+    #    try:
+    #        save_netcdf(
+    #            testobj, [input_data], [output], ref_data, failing_names, out_filename
+    #        )
+    #    except Exception as error:
+    #        print(error)
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, f"No tests passed"
-    #MPI.COMM_WORLD.Barrier()
+    MPI.COMM_WORLD.Barrier()
 
 @contextlib.contextmanager
 def _subtest(failure_list, subtests, **kwargs):
