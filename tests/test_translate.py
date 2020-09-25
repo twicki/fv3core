@@ -250,9 +250,9 @@ def test_parallel_savepoint(
     # run python version of functionality
     regression_file = '/test_data/regression_' + test_name + '_' + str(grid[0].rank) + '.txt'
     
-    fv3util.communicator.start_regression(regression_file)
+    #fv3util.communicator.start_regression(regression_file)
     output = testobj.compute_parallel(input_data, communicator)
-    fv3util.communicator.save_regression(regression_file)
+    #fv3util.communicator.save_regression(regression_file)
     failing_names = []
     passing_names = []
     ref_data = {}
