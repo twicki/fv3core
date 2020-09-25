@@ -2,7 +2,7 @@
 set -e -x
 BACKEND=$1
 EXPNAME=$2
-ARGS="-vv -s -rsx --backend=${BACKEND} --which_modules=FVDynamics --junitxml=/.jenkins/parallel_test_results.xml"
+ARGS="-vv -s -rsx --backend=${BACKEND} --junitxml=/.jenkins/parallel_test_results.xml"
 export EXPERIMENT=${EXPNAME}
 
 # Set the host data location
