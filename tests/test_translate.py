@@ -242,6 +242,7 @@ def test_parallel_savepoint(
     subtests,
     caplog,
 ):
+    
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
@@ -286,7 +287,7 @@ def test_parallel_savepoint(
             print(error)
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, f"No tests passed"
-
+    MPI.COMM_WORLD.Barrier()
 
 @contextlib.contextmanager
 def _subtest(failure_list, subtests, **kwargs):
