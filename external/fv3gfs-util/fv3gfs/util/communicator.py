@@ -9,6 +9,7 @@ from ._timing import Timer
 import logging
 import os
 import pickle
+import numpy
 
 __all__ = [
     "TileCommunicator",
@@ -36,33 +37,42 @@ def start_regression(filename: str):
     DO_REGRESSION = True
 
     if os.path.isfile(filename):
+        #print('loading loading loading--------')
         with open(filename, 'rb') as f:
-            REGRESSION_DATA = pickle.load(f)
+            REGRESSION_DATA = numpy.load(f) #pickle.load(f)
+            #print('LENGTH', len(REGRESSION_DATA))
     else:
         REGRESSION_DATA = []
 
 
 def regress_arrays(*arrays):
     if DO_REGRESSION:
-        current_hash = b''
-        for array in arrays:
-            current_hash = hash(current_hash + array.tostring())
+        #print('weeeeeeeeeeeee')
+        current_hash = arrays
+        #current_hash = b''
+        #for array in arrays:
+        #    current_hash = current_hash + array.tostring()
+        #current_hash = hash(current_hash)
+        #print(arrays)
         global REGRESSION_INDEX
         if len(REGRESSION_DATA) > REGRESSION_INDEX:
             # check data
             if current_hash != REGRESSION_DATA[REGRESSION_INDEX]:
+                print('current_hash', current_hash)
+                print('regression', REGRESSION_INDEX,  REGRESSION_DATA[REGRESSION_INDEX])
                 raise RegressionError()
         else:
             # set data
+            #print('appending', current_hash)
             REGRESSION_DATA.append(current_hash)
             REGRESSION_INDEX += 1
-
+            #print(REGRESSION_INDEX)
 
 def save_regression(filename):
     if not os.path.isfile(filename):
-        with open(filename, 'wb') as f:
-            pickle.dump(REGRESSION_DATA, f)
-
+        #with open(filename, 'wb') as f:
+        #    pickle.dump(REGRESSION_DATA, f)
+        numpy.save(filename, REGRESSION_DATA) 
 
 def bcast_metadata_list(comm, quantity_list):
     is_master = comm.Get_rank() == constants.MASTER_RANK
