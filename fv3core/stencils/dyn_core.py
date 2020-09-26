@@ -126,18 +126,14 @@ def compute(state, comm):
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
-        #reqs[halovar] = comm.start_halo_update(
-        #    state.__getattribute__(halovar), n_points=utils.halo
-        #)
-        comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
-    #reqs_vector = comm.start_vector_halo_update(
-    #    state.u_quantity, state.v_quantity, n_points=utils.halo
-    #)
-    comm.vector_halo_update(
+        reqs[halovar] = comm.start_halo_update(
+            state.__getattribute__(halovar), n_points=utils.halo
+        )
+    reqs_vector = comm.start_vector_halo_update(
         state.u_quantity, state.v_quantity, n_points=utils.halo
     )
-    #reqs["q_con_quantity"].wait()
-    #reqs["cappa_quantity"].wait()
+    reqs["q_con_quantity"].wait()
+    reqs["cappa_quantity"].wait()
 
     state.__dict__.update(dyncore_temporaries(shape))
     if init_step:
@@ -164,10 +160,9 @@ def compute(state, comm):
         if spec.namelist.breed_vortex_inline or (it == n_split - 1):
             remap_step = True
         if not hydrostatic:
-            #reqs["w_quantity"] = comm.start_halo_update(
-            #    state.w_quantity, n_points=utils.halo
-            #)
-            comm.halo_update(state.w_quantity, n_points=utils.halo)
+            reqs["w_quantity"] = comm.start_halo_update(
+                state.w_quantity, n_points=utils.halo
+            )
             if it == 0:
                 set_gz(
                     state.zs,
@@ -176,13 +171,12 @@ def compute(state, comm):
                     origin=grid.compute_origin(),
                     domain=(grid.nic, grid.njc, grid.npz + 1),
                 )
-                #reqs["gz_quantity"] = comm.start_halo_update(
-                #    state.gz_quantity, n_points=utils.halo
-                #)
-                comm.halo_update(state.gz_quantity, n_points=utils.halo)
+                reqs["gz_quantity"] = comm.start_halo_update(
+                    state.gz_quantity, n_points=utils.halo
+                )
         if it == 0:
-            #reqs["delp_quantity"].wait()
-            #reqs["pt_quantity"].wait()
+            reqs["delp_quantity"].wait()
+            reqs["pt_quantity"].wait()
             beta_d = 0
         else:
             beta_d = spec.namelist.beta
@@ -199,9 +193,9 @@ def compute(state, comm):
                     origin=(grid.is_ - 1, grid.js - 1, 0),
                     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
                 )
-        #reqs_vector.wait()
-        #if not hydrostatic:
-        #    reqs["w_quantity"].wait()
+        reqs_vector.wait()
+        if not hydrostatic:
+            reqs["w_quantity"].wait()
 
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
@@ -221,15 +215,12 @@ def compute(state, comm):
         )
 
         if spec.namelist.nord > 0:
-            #reqs["divgd_quantity"] = comm.start_halo_update(
-            #    state.divgd_quantity, n_points=utils.halo
-            #)
-            comm.halo_update(
+            reqs["divgd_quantity"] = comm.start_halo_update(
                 state.divgd_quantity, n_points=utils.halo
             )
         if not hydrostatic:
             if it == 0:
-                #reqs["gz_quantity"].wait()
+                reqs["gz_quantity"].wait()
                 cp.copy_stencil(
                     state.gz,
                     state.zh,
@@ -268,15 +259,12 @@ def compute(state, comm):
             )
 
         pgradc.compute(state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2)
-        #reqc_vector = comm.start_vector_halo_update(
-        #    state.uc_quantity, state.vc_quantity, n_points=utils.halo
-        # )
-        comm.vector_halo_update(
+        reqc_vector = comm.start_vector_halo_update(
             state.uc_quantity, state.vc_quantity, n_points=utils.halo
         )
-        #if spec.namelist.nord > 0:
-        #    reqs["divgd_quantity"].wait()
-        #reqc_vector.wait()
+        if spec.namelist.nord > 0:
+            reqs["divgd_quantity"].wait()
+        reqc_vector.wait()
         state.nord_v, state.damp_vt = d_sw.compute(
             state.vt,
             state.delp,
@@ -354,30 +342,27 @@ def compute(state, comm):
                 state.wsd,
             )
 
-            #reqs["zh_quantity"] = comm.start_halo_update(
-            #    state.zh_quantity, n_points=utils.halo
-            #)
-            comm.halo_update(state.zh_quantity, n_points=utils.halo)
+            reqs["zh_quantity"] = comm.start_halo_update(
+                state.zh_quantity, n_points=utils.halo
+            )
             if grid.npx == grid.npy:
-                #reqs["pkc_quantity"] = comm.start_halo_update(
-                #    state.pkc_quantity, n_points=2
-                #)
-                comm.halo_update(state.pkc_quantity, n_points=2)
+                reqs["pkc_quantity"] = comm.start_halo_update(
+                    state.pkc_quantity, n_points=2
+                )
             else:
-                #reqs["pkc_quantity"] = comm.start_halo_update(
-                #    state.pkc_quantity, n_points=utils.halo
-                #)
-                comm.halo_update(state.pkc_quantity, n_points=utils.halo)
+                reqs["pkc_quantity"] = comm.start_halo_update(
+                    state.pkc_quantity, n_points=utils.halo
+                )
             if remap_step:
                 pe_halo.compute(state.pe, state.delp, state.ptop)
             if spec.namelist.use_logp:
                 raise Exception("unimplemented namelist option use_logp=True")
             else:
                 pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
-        #if not hydrostatic:
-        #    #reqs["zh_quantity"].wait()
-        #    #if grid.npx != grid.npy:
-        #    #    reqs["pkc_quantity"].wait()
+        if not hydrostatic:
+            reqs["zh_quantity"].wait()
+            if grid.npx != grid.npy:
+                reqs["pkc_quantity"].wait()
         if not hydrostatic:
             basic.multiply_constant(
                 state.zh,
@@ -386,8 +371,8 @@ def compute(state, comm):
                 origin=(grid.is_ - 2, grid.js - 2, 0),
                 domain=(grid.nic + 4, grid.njc + 4, grid.npz + 1),
             )
-            #if grid.npx == grid.npy:
-            #    reqs["pkc_quantity"].wait()
+            if grid.npx == grid.npy:
+                reqs["pkc_quantity"].wait()
             if spec.namelist.beta != 0:
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"
@@ -419,10 +404,7 @@ def compute(state, comm):
             )
 
         if it != n_split - 1:
-            #reqs_vector = comm.start_vector_halo_update(
-            #    state.u_quantity, state.v_quantity, n_points=utils.halo
-            #)
-            comm.vector_halo_update(
+            reqs_vector = comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=utils.halo
             )
         else:
