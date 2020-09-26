@@ -2,7 +2,7 @@
 set -e -x
 BACKEND=$1
 EXPNAME=$2
-ARGS="-vv -s -rsx --backend=${BACKEND} --which_modules=CubedToLatLon,DynCore,FVSubgridZ,HaloUpdate,HaloUpdate_2,HaloVectorUpdate,MPPBoundaryAdjust,MPPUpdateDomains,Tracer2D1L --junitxml=/.jenkins/parallel_test_results.xml"
+ARGS="-vv -s -rsx --backend=${BACKEND} --which_modules=CubedToLatLon,DynCore,FVSubgridZ,HaloUpdate,HaloUpdate-2,HaloVectorUpdate,MPPBoundaryAdjust,MPPUpdateDomains,Tracer2D1L --junitxml=/.jenkins/parallel_test_results.xml"
 export EXPERIMENT=${EXPNAME}
 
 # Set the host data location
