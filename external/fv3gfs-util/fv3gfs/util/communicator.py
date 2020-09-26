@@ -67,12 +67,18 @@ def regress_arrays(*arrays):
             REGRESSION_DATA.append(current_hash)
             REGRESSION_INDEX += 1
             #print(REGRESSION_INDEX)
-
+#rm ${SCRATCH}/fv3core_fortran_data/7.1.1/*/regression*.txt
 def save_regression(filename):
+    global DO_REGRESSION
+    global REGRESSION_DATA
+    global REGRESSION_INDEX
     if not os.path.isfile(filename):
         #with open(filename, 'wb') as f:
         #    pickle.dump(REGRESSION_DATA, f)
         numpy.save(filename, REGRESSION_DATA) 
+    REGRESSION_DATA = None
+    REGRESSION_INDEX = 0
+    DO_REGRESSION = False
 
 def bcast_metadata_list(comm, quantity_list):
     is_master = comm.Get_rank() == constants.MASTER_RANK
