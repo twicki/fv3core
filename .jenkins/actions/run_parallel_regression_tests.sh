@@ -20,10 +20,11 @@ make get_test_data
 if [ ${EXPNAME} == "c12_6ranks_standard" ]; then
     make run_tests_parallel TEST_ARGS="${ARGS_FVDYN} -vv -s -rsx --backend=${BACKEND}  --print_failures  --which_modules=FVDynamics --junitxml=/.jenkins/parallel_test_results.xml "
 else
-for COUNT in 1 2 3 4 5 
+for COUNT in 1 2 3 4 5 6
 do
     echo "THIS TIME", ${COUNT}
-    make run_tests_parallel TEST_ARGS="${ARGS_FVDYN} -vv -s -rsx --backend=${BACKEND}  --print_failures  --junitxml=/.jenkins/parallel_test_results.xml "
+    make run_tests_parallel TEST_ARGS=" -vv -s -rsx --backend=${BACKEND} --which_modules=CubedToLatLon,DynCore,FVSubgridZ,HaloUpdate,HaloUpdate-2,HaloVectorUpdate,MPPBoundaryAdjust,MPPUpdateDomains,Tracer2D1L  --print_failures --faulure_stride=79  --junitxml=/.jenkins/parallel_test_results.xml "
+    make run_tests_parallel TEST_ARGS=" -vv -s -rsx --backend=${BACKEND} --which_modules=FVDynamics  --print_failures --faulure_stride=79  --junitxml=/.jenkins/parallel_test_results.xml "
 done
 fi
 echo `ls -lh ${TEST_DATA_HOST}/*.txt`
