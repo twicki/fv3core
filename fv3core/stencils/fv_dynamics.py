@@ -171,7 +171,10 @@ def do_dyn(state, comm):
         domain=grid.domain_shape_standard(),
     )
     print("DynCore", grid.rank)
+    regression_file = '/test_data/regression_dyncore_' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
     dyn_core.compute(state, comm)
+    fv3util.communicator.save_regression(regression_file)
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
