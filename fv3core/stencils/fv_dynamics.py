@@ -204,7 +204,11 @@ def post_remap(state, comm):
         )
     if spec.namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
+        regression_file = '/test_data/regression_omga_pre_' + str(grid.rank) + '.txt'
+        fv3util.communicator.start_regression(regression_file)
+       
         comm.halo_update(state.omga_quantity, n_points=utils.halo)
+        fv3util.communicator.save_regression(regression_file)
         del2cubed.compute(
             state.omga, spec.namelist.nf_omega, 0.18 * grid.da_min, grid.npz
         )
@@ -228,10 +232,13 @@ def wrapup(state, comm):
     )
 
     print("CubedToLatLon", grid.rank)
+    regression_file = '/test_data/regression_cubed' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
+       
     compute_cubed_to_latlon(
         state.u_quantity, state.v_quantity, state.ua, state.va, comm, 1
     )
-
+    fv3util.communicator.save_regression(regression_file)
 
 def set_constants(state):
     agrav = 1.0 / constants.GRAV
