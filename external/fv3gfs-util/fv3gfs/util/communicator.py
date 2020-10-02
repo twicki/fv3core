@@ -10,7 +10,7 @@ import logging
 import os
 import pickle
 import numpy
-
+from mpi4py import MPI
 __all__ = [
     "TileCommunicator",
     "CubedSphereCommunicator",
@@ -21,7 +21,7 @@ __all__ = [
 logger = logging.getLogger("fv3gfs.util")
 
 
-REGRESSION_DATA = None
+REGRESSION_DATA = []
 REGRESSION_INDEX = 0
 DO_REGRESSION = False
 
@@ -35,48 +35,108 @@ def start_regression(filename: str):
     global REGRESSION_DATA
     global REGRESSION_INDEX
     DO_REGRESSION = True
-
-    if os.path.isfile(filename):
+    REGRESSION_INDEX = 0
+    print('STARTING REGRESSION', MPI.COMM_WORLD.Get_rank())
+    if os.path.isfile(filename + '.npy'):
         #print('loading loading loading--------')
-        with open(filename, 'rb') as f:
+        with open(filename + '.npy', 'rb') as f:
             REGRESSION_DATA = numpy.load(f) #pickle.load(f)
+            #print(type( REGRESSION_DATA))
+            #for i in range(len(REGRESSION_DATA)):
+            #    print(i, REGRESSION_DATA[i].keys())
+            #    #if len(REGRESSION_DATA[i].shape) > 1:
+            #    #    REGRESSION_DATA[i] = numpy.moveaxis(REGRESSION_DATA[i], 1, 0)
             #print('LENGTH', len(REGRESSION_DATA))
+        #if  MPI.COMM_WORLD.Get_rank() == 3:
+        #    print('---------WTF')
+        #    for i in range(len(REGRESSION_DATA)):
+        #        for k, v in REGRESSION_DATA[i].items():
+        #            print(i, k, v[0][0, 0, 0])
     else:
         REGRESSION_DATA = []
 
 
-def regress_arrays(*arrays):
+def regress_arrays(category, *arrays):
+    global REGRESSION_DATA
     if DO_REGRESSION:
+        global REGRESSION_INDEX
         #print('weeeeeeeeeeeee')
-        current_hash = arrays
+        #current_hash = arrays
+        current_hash = list(arrays)
+        #print(len(current_hash),  len(REGRESSION_DATA))
+        #for i in range(len(current_hash)):
+        #    print('CURRENT', i, REGRESSION_INDEX, MPI.COMM_WORLD.Get_rank(), current_hash[i].shape)
         #current_hash = b''
         #for array in arrays:
         #    current_hash = current_hash + array.tostring()
         #current_hash = hash(current_hash)
         #print(arrays)
-        global REGRESSION_INDEX
+        #current_hash[0][0,0,0] = 31.0
+        #print(REGRESSION_INDEX,  MPI.COMM_WORLD.Get_rank())
+        #print(category, MPI.COMM_WORLD.Get_rank(), REGRESSION_INDEX, REGRESSION_DATA[REGRESSION_INDEX][category][0][0, 0, 0])
         if len(REGRESSION_DATA) > REGRESSION_INDEX:
             # check data
-            if current_hash != REGRESSION_DATA[REGRESSION_INDEX]:
-                print('current_hash', current_hash)
-                print('regression', REGRESSION_INDEX,  REGRESSION_DATA[REGRESSION_INDEX])
-                raise RegressionError()
+            #print(len(current_hash),len(REGRESSION_DATA) )
+            for i in range(len(current_hash)):
+                #print('starting with',  current_hash[i].shape)
+                #print('now', current_hash[i].shape, REGRESSION_DATA[REGRESSION_INDEX][i].shape)
+                if category not in REGRESSION_DATA[REGRESSION_INDEX]:
+                    print(category, 'not in ', REGRESSION_DATA[REGRESSION_INDEX].keys())
+                if numpy.any(numpy.logical_not(numpy.array_equal(current_hash[i], REGRESSION_DATA[REGRESSION_INDEX][category][i]))):
+                    print('FAILED')
+                    #if  MPI.COMM_WORLD.Get_rank() == 0:
+                    #print('current_hash', i, current_hash[i])
+                    #print('regression', REGRESSION_INDEX, REGRESSION_DATA[REGRESSION_INDEX][i])
+                    print(category, 'i', i,  'regression index', REGRESSION_INDEX, 'rank', MPI.COMM_WORLD.Get_rank(), current_hash[i].shape, REGRESSION_DATA[REGRESSION_INDEX][category][i].shape)
+                    s = current_hash[i].shape
+                    for a in range(s[0]):
+                        for b in range(s[1]):
+                            for c in range(s[2]):
+                                curr =  current_hash[i][a, b, c]
+                                regress =  REGRESSION_DATA[REGRESSION_INDEX][category][i][a, b, c]
+                                if curr != regress:
+                                    print('mismatch', a, b, c, curr, regress )
+                    #print(current_hash[i][0,0,0], REGRESSION_DATA[REGRESSION_INDEX][category][i][0,0,0])
+                    #for j in range(len(REGRESSION_DATA)):
+                    ##    for a in range(REGRESSION_DATA[j].shape[0]):
+                    #        for b in 
+                    #    print(j, numpy.where(REGRESSION_DATA[j] ==current_hash[i][0,0,0]))
+                    #if current_hash[i][0,0,0] in REGRESSION_DATA:
+                    #    print('THIS VALUE IS IN J')
+                    raise RegressionError()
         else:
             # set data
             #print('appending', current_hash)
-            REGRESSION_DATA.append(current_hash)
-            REGRESSION_INDEX += 1
-            #print(REGRESSION_INDEX)
+            #if MPI.COMM_WORLD.Get_rank() == 3:
+            #    print('appending', category, current_hash[0][0,0,0])
+            current_hash_copy = [None] * len(current_hash)
+            for i in range(len(current_hash)):
+                current_hash_copy[i] = current_hash[i].copy()
+            REGRESSION_DATA.append({category: current_hash_copy})
+            #if  MPI.COMM_WORLD.Get_rank() == 3:
+            #    print('---------I JUST APPENDED IT')
+            #    for i in range(len(REGRESSION_DATA)):
+            #        for k, v in REGRESSION_DATA[i].items():
+            #            print('CHECKING', i, k, v[0][0, 0, 0])
+        REGRESSION_INDEX += 1
+        #print(REGRESSION_INDEX)
 #rm ${SCRATCH}/fv3core_fortran_data/7.1.1/*/regression*.txt
 def save_regression(filename):
     global DO_REGRESSION
     global REGRESSION_DATA
     global REGRESSION_INDEX
-    if not os.path.isfile(filename):
+    if not os.path.isfile(filename + '.npy'):
         #with open(filename, 'wb') as f:
         #    pickle.dump(REGRESSION_DATA, f)
-        numpy.save(filename, REGRESSION_DATA) 
-    REGRESSION_DATA = None
+        print('saving', filename)
+        #if  MPI.COMM_WORLD.Get_rank() == 3:
+        #    print('---------WTF')
+        #    for i in range(len(REGRESSION_DATA)):
+        #        for k, v in REGRESSION_DATA[i].items():
+        #            print('writing', i, k, v[0][0, 0, 0])
+        numpy.save(filename, REGRESSION_DATA)
+        
+    REGRESSION_DATA = []
     REGRESSION_INDEX = 0
     DO_REGRESSION = False
 
@@ -647,14 +707,14 @@ class CubedSphereCommunicator(Communicator):
     def _Isend(self, numpy, in_array, **kwargs):
         # don't want to use a buffer here, because we leave this scope and can't close
         # the context manager. might figure out a way to do it later
-        regress_arrays(in_array)
+        regress_arrays('Isend',in_array)
         with self.timer.clock("pack"):
             array = numpy.ascontiguousarray(in_array)
         with self.timer.clock("Isend"):
             return self.comm.Isend(array, **kwargs)
 
     def _Send(self, numpy, in_array, **kwargs):
-        regress_arrays(in_arrays)
+        regress_arrays('Send', in_array)
         with send_buffer(numpy.empty, in_array, timer=self.timer) as sendbuf:
             self.comm.Send(sendbuf, **kwargs)
 
@@ -662,7 +722,7 @@ class CubedSphereCommunicator(Communicator):
         with recv_buffer(numpy.empty, out_array, timer=self.timer) as recvbuf:
             with self.timer.clock("Recv"):
                 self.comm.Recv(recvbuf, **kwargs)
-            regress_arrays(recvbuf)
+            regress_arrays('Recv',recvbuf)
 
     def _Irecv(self, numpy, out_array, **kwargs):
         # we can't perform a true Irecv because we need to receive the data into a
@@ -672,7 +732,7 @@ class CubedSphereCommunicator(Communicator):
             with recv_buffer(numpy.empty, out_array, timer=self.timer) as recvbuf:
                 with self.timer.clock("Recv"):
                     self.comm.Recv(recvbuf, **kwargs)
-                regress_arrays(recvbuf)
+                regress_arrays('Irecv',recvbuf)
 
         return FunctionRequest(recv)
 
