@@ -38,7 +38,7 @@ def start_regression(filename: str):
     REGRESSION_INDEX = 0
     print('STARTING REGRESSION', MPI.COMM_WORLD.Get_rank())
     if os.path.isfile(filename + '.npy'):
-        #print('loading loading loading--------')
+        print('loading loading loading--------', filename)
         with open(filename + '.npy', 'rb') as f:
             REGRESSION_DATA = numpy.load(f) #pickle.load(f)
             #print(type( REGRESSION_DATA))
@@ -81,7 +81,6 @@ def regress_arrays(category, *arrays):
                 #print('starting with',  current_hash[i].shape)
                 #print('now', current_hash[i].shape, REGRESSION_DATA[REGRESSION_INDEX][i].shape)
                 if category not in REGRESSION_DATA[REGRESSION_INDEX]:
-                    print(REGRESSION_DATA[REGRESSION_INDEX])
                     print(category, 'not in ', REGRESSION_DATA[REGRESSION_INDEX].keys())
                 if numpy.any(numpy.logical_not(numpy.array_equal(current_hash[i], REGRESSION_DATA[REGRESSION_INDEX][category][i]))):
                     print('FAILED')
@@ -110,7 +109,6 @@ def regress_arrays(category, *arrays):
             #print('appending', current_hash)
             #if MPI.COMM_WORLD.Get_rank() == 3:
             #    print('appending', category, current_hash[0][0,0,0])
-            print('appending',  MPI.COMM_WORLD.Get_rank())
             current_hash_copy = [None] * len(current_hash)
             for i in range(len(current_hash)):
                 current_hash_copy[i] = current_hash[i].copy()
