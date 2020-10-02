@@ -38,7 +38,7 @@ def start_regression(filename: str):
     REGRESSION_INDEX = 0
     print('STARTING REGRESSION', MPI.COMM_WORLD.Get_rank())
     if os.path.isfile(filename + '.npy'):
-        print('loading loading loading--------', filename)
+        #print('loading loading loading--------', filename)
         with open(filename + '.npy', 'rb') as f:
             REGRESSION_DATA = numpy.load(f) #pickle.load(f)
             #print(type( REGRESSION_DATA))
