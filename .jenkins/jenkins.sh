@@ -86,7 +86,6 @@ if grep -q "parallel" <<< "${script}"; then
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
 	    sed -i 's|45|30|g' ${scheduler_script}
-	    sed -i 's|#SBATCH --account=d107||g' ${scheduler_script}
 	    sed -i 's|cscsci|debug|g' ${scheduler_script}
 	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	    sed -i 's|<NTASKSPERNODE>|"24"|g' ${scheduler_script}

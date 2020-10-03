@@ -400,4 +400,11 @@ def compute(state, comm):
             )
             if last_step:
                 post_remap(state, comm)
+                
+            regression_file = '/test_data/middway_' + str(grid.rank) + '.txt'
+            fv3util.communicator.regress_arrays('after remapping u', state.u.data)
+            fv3util.communicator.regress_arrays('after remapping v', state.v.data)
+            fv3util.communicator.regress_arrays('after remapping ua', state.ua.data)
+            fv3util.communicator.regress_arrays('after remapping va', state.va.data)
+            fv3util.communicator.save_regression(regression_file)
     wrapup(state, comm)
