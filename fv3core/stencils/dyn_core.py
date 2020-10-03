@@ -122,8 +122,8 @@ def compute(state, comm):
     ms = max(1, spec.namelist.m_split / 2.0)
     shape = state.delz.shape
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
-    regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
-    fv3util.communicator.start_regression(regression_file)
+    #regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
+    #fv3util.communicator.start_regression(regression_file)
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
         #reqs[halovar] = comm.start_halo_update(
@@ -457,4 +457,4 @@ def compute(state, comm):
                 n_con,
                 dt,
             )
-    fv3util.communicator.save_regression(regression_file)
+    #fv3util.communicator.save_regression(regression_file)
