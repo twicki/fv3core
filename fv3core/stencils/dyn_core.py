@@ -122,8 +122,8 @@ def compute(state, comm):
     ms = max(1, spec.namelist.m_split / 2.0)
     shape = state.delz.shape
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
-    #regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
-    #fv3util.communicator.start_regression(regression_file)
+    regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
         #reqs[halovar] = comm.start_halo_update(
@@ -133,13 +133,13 @@ def compute(state, comm):
     #reqs_vector = comm.start_vector_halo_update(
     #    state.u_quantity, state.v_quantity, n_points=utils.halo
     #)
-    #fv3util.communicator.regress_arrays('dyncore before halo update u', state.u.data)
-    #fv3util.communicator.regress_arrays('dyncore before halo update v', state.v.data)
+    fv3util.communicator.regress_arrays('dyncore before halo update u', state.u.data)
+    fv3util.communicator.regress_arrays('dyncore before halo update v', state.v.data)
     comm.vector_halo_update(
         state.u_quantity, state.v_quantity, n_points=utils.halo
     )
-    #fv3util.communicator.regress_arrays('dyncore after halo update u', state.u.data)
-    #fv3util.communicator.regress_arrays('dyncore after halo update v', state.v.data)
+    fv3util.communicator.regress_arrays('dyncore after halo update u', state.u.data)
+    fv3util.communicator.regress_arrays('dyncore after halo update v', state.v.data)
     #reqs["q_con_quantity"].wait()
     #reqs["cappa_quantity"].wait()
 
@@ -275,9 +275,13 @@ def compute(state, comm):
         #reqc_vector = comm.start_vector_halo_update(
         #    state.uc_quantity, state.vc_quantity, n_points=utils.halo
         # )
+        fv3util.communicator.regress_arrays('dyncore before halo update uc', state.uc.data)
+        fv3util.communicator.regress_arrays('dyncore before halo update vc', state.vc.data)
         comm.vector_halo_update(
             state.uc_quantity, state.vc_quantity, n_points=utils.halo
         )
+        fv3util.communicator.regress_arrays('dyncore after halo update uc', state.uc.data)
+        fv3util.communicator.regress_arrays('dyncore after halo update vc', state.vc.data)
         #if spec.namelist.nord > 0:
         #    reqs["divgd_quantity"].wait()
         #reqc_vector.wait()
@@ -431,11 +435,11 @@ def compute(state, comm):
             )
         else:
             if spec.namelist.grid_type < 4:
-                #fv3util.communicator.regress_arrays('dyncore before synchronize_vector_interfaces halo update u', state.u.data)
-                #fv3util.communicator.regress_arrays('dyncore before synchronize_vector_interfaces halo update v', state.v.data)
+                fv3util.communicator.regress_arrays('dyncore before synchronize_vector_interfaces halo update u', state.u.data)
+                fv3util.communicator.regress_arrays('dyncore before synchronize_vector_interfaces halo update v', state.v.data)
                 comm.synchronize_vector_interfaces(state.u_quantity, state.v_quantity)
-                #fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update u', state.u.data)
-                #fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update v', state.v.data)
+                fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update u', state.u.data)
+                fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update v', state.v.data)
     if n_con != 0 and spec.namelist.d_con > 1.0e-5:
         nf_ke = min(3, spec.namelist.nord + 1)
 
@@ -453,4 +457,4 @@ def compute(state, comm):
                 n_con,
                 dt,
             )
-    #fv3util.communicator.save_regression(regression_file)
+    fv3util.communicator.save_regression(regression_file)
