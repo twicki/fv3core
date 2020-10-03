@@ -177,7 +177,15 @@ def do_dyn(state, comm):
     print("DynCore", grid.rank)
     regression_file = '/test_data/regression_dyncore_' + str(grid.rank) + '.txt'
     fv3util.communicator.start_regression(regression_file)
+    fv3util.communicator.regress_arrays('before dyncore u', state.u.data)
+    fv3util.communicator.regress_arrays('before dyncore  v', state.v.data)
+    fv3util.communicator.regress_arrays('before dyncore ua', state.ua.data)
+    fv3util.communicator.regress_arrays('before dyncore ', state.va.data)
     dyn_core.compute(state, comm)
+    fv3util.communicator.regress_arrays('after dyncore u', state.u.data)
+    fv3util.communicator.regress_arrays('after dyncore  v', state.v.data)
+    fv3util.communicator.regress_arrays('after dyncore ua', state.ua.data)
+    fv3util.communicator.regress_arrays('after dyncore ', state.va.data)
     fv3util.communicator.save_regression(regression_file)
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
@@ -199,6 +207,10 @@ def do_dyn(state, comm):
 
 def post_remap(state, comm):
     grid = spec.grid
+    regression_file = '/test_data/regression_omg_halo_' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
+    fv3util.communicator.regress_arrays('omga pre set', state.omga.data)
+        
     if not spec.namelist.hydrostatic:
         print("Omega", grid.rank)
         set_omega(
@@ -209,17 +221,21 @@ def post_remap(state, comm):
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
+        fv3util.communicator.regress_arrays('omga post set', state.omga.data)
+   
     if spec.namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
-        regression_file = '/test_data/regression_omga_pre_' + str(grid.rank) + '.txt'
-        fv3util.communicator.start_regression(regression_file)
-       
+        
+        fv3util.communicator.regress_arrays('omga pre halo update', state.omga.data)
+             
         comm.halo_update(state.omga_quantity, n_points=utils.halo)
+        
+        fv3util.communicator.regress_arrays('omga post halo update', state.omga.data)
         fv3util.communicator.save_regression(regression_file)
         del2cubed.compute(
             state.omga, spec.namelist.nf_omega, 0.18 * grid.da_min, grid.npz
         )
-
+       
 
 def wrapup(state, comm):
     grid = spec.grid
@@ -241,10 +257,17 @@ def wrapup(state, comm):
     print("CubedToLatLon", grid.rank)
     regression_file = '/test_data/regression_cubed' + str(grid.rank) + '.txt'
     fv3util.communicator.start_regression(regression_file)
-       
+    fv3util.communicator.regress_arrays('before cubed to lat lon u', state.u.data)
+    fv3util.communicator.regress_arrays('before cubed to lat lon v', state.v.data)
+    fv3util.communicator.regress_arrays('before cubed to lat lon ua', state.ua.data)
+    fv3util.communicator.regress_arrays('before cubed to lat lon va', state.va.data)
     compute_cubed_to_latlon(
         state.u_quantity, state.v_quantity, state.ua, state.va, comm, 1
     )
+    fv3util.communicator.regress_arrays('after cubed to lat lon u', state.u.data)
+    fv3util.communicator.regress_arrays('after cubed to lat lon v', state.v.data)
+    fv3util.communicator.regress_arrays('after cubed to lat lon ua', state.ua.data)
+    fv3util.communicator.regress_arrays('after cubed to lat lon va', state.va.data)
     fv3util.communicator.save_regression(regression_file)
 
 def set_constants(state):

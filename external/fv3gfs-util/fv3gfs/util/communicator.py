@@ -78,8 +78,9 @@ def regress_arrays(category, *arrays):
             # check data
             #print(len(current_hash),len(REGRESSION_DATA) )
             for i in range(len(current_hash)):
-                #print('starting with',  current_hash[i].shape)
-                #print('now', current_hash[i].shape, REGRESSION_DATA[REGRESSION_INDEX][i].shape)
+                #print('shape', current_hash[i].shape, category)
+                #if len(current_hash[i].shape) == 3:
+                #    print('starting with',  category, current_hash[i].shape, current_hash[i][0, 0, 0])
                 if category not in REGRESSION_DATA[REGRESSION_INDEX]:
                     print(category, 'not in ', REGRESSION_DATA[REGRESSION_INDEX].keys())
                 if numpy.any(numpy.logical_not(numpy.array_equal(current_hash[i], REGRESSION_DATA[REGRESSION_INDEX][category][i]))):
@@ -89,13 +90,14 @@ def regress_arrays(category, *arrays):
                     #print('regression', REGRESSION_INDEX, REGRESSION_DATA[REGRESSION_INDEX][i])
                     print(category, 'i', i,  'regression index', REGRESSION_INDEX, 'rank', MPI.COMM_WORLD.Get_rank(), current_hash[i].shape, REGRESSION_DATA[REGRESSION_INDEX][category][i].shape)
                     s = current_hash[i].shape
-                    for a in range(s[0]):
-                        for b in range(s[1]):
-                            for c in range(s[2]):
-                                curr =  current_hash[i][a, b, c]
-                                regress =  REGRESSION_DATA[REGRESSION_INDEX][category][i][a, b, c]
-                                if curr != regress:
-                                    print('mismatch', a, b, c, curr, regress )
+                    if len(s) == 3:
+                        for a in range(s[0]):
+                            for b in range(s[1]):
+                                for c in range(s[2]):
+                                    curr =  current_hash[i][a, b, c]
+                                    regress =  REGRESSION_DATA[REGRESSION_INDEX][category][i][a, b, c]
+                                    if curr != regress:
+                                        print('mismatch', a, b, c, curr, regress )
                     #print(current_hash[i][0,0,0], REGRESSION_DATA[REGRESSION_INDEX][category][i][0,0,0])
                     #for j in range(len(REGRESSION_DATA)):
                     ##    for a in range(REGRESSION_DATA[j].shape[0]):
