@@ -175,13 +175,16 @@ def do_dyn(state, comm):
         domain=grid.domain_shape_standard(),
     )
     print("DynCore", grid.rank)
-    regression_file = '/test_data/regression_dyncore_' + str(grid.rank) + '.txt'
+    regression_file = '/test_data/regression_dyncore_before_' + str(grid.rank) + '.txt'
     fv3util.communicator.start_regression(regression_file)
     fv3util.communicator.regress_arrays('before dyncore u', state.u.data)
     fv3util.communicator.regress_arrays('before dyncore  v', state.v.data)
     fv3util.communicator.regress_arrays('before dyncore ua', state.ua.data)
     fv3util.communicator.regress_arrays('before dyncore ', state.va.data)
+    fv3util.communicator.save_regression(regression_file)
     dyn_core.compute(state, comm)
+    regression_file = '/test_data/regression_dyncore_after_' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
     fv3util.communicator.regress_arrays('after dyncore u', state.u.data)
     fv3util.communicator.regress_arrays('after dyncore  v', state.v.data)
     fv3util.communicator.regress_arrays('after dyncore ua', state.ua.data)

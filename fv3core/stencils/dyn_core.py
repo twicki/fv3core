@@ -122,14 +122,16 @@ def compute(state, comm):
     ms = max(1, spec.namelist.m_split / 2.0)
     shape = state.delz.shape
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
-    #regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
-    #fv3util.communicator.start_regression(regression_file)
+    regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
+    fv3util.communicator.start_regression(regression_file)
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
         #reqs[halovar] = comm.start_halo_update(
         #    state.__getattribute__(halovar), n_points=utils.halo
         #)
+        fv3util.communicator.regress_arrays('dyncore before halo update ' + halovar, state.__getattribute__(halovar).data)
         comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
+        fv3util.communicator.regress_arrays('dyncore before halo after ' + halovar, state.__getattribute__(halovar).data)
     #reqs_vector = comm.start_vector_halo_update(
     #    state.u_quantity, state.v_quantity, n_points=utils.halo
     #)
@@ -171,7 +173,9 @@ def compute(state, comm):
             #reqs["w_quantity"] = comm.start_halo_update(
             #    state.w_quantity, n_points=utils.halo
             #)
+            fv3util.communicator.regress_arrays('dyncore before halo update w', state.w.data)
             comm.halo_update(state.w_quantity, n_points=utils.halo)
+            fv3util.communicator.regress_arrays('dyncore after halo update w', state.w.data)
             if it == 0:
                 set_gz(
                     state.zs,
@@ -183,7 +187,9 @@ def compute(state, comm):
                 #reqs["gz_quantity"] = comm.start_halo_update(
                 #    state.gz_quantity, n_points=utils.halo
                 #)
+                 fv3util.communicator.regress_arrays('dyncore before halo update gz', state.gz.data)
                 comm.halo_update(state.gz_quantity, n_points=utils.halo)
+                fv3util.communicator.regress_arrays('dyncore after halo update gz', state.gz.data)
         if it == 0:
             #reqs["delp_quantity"].wait()
             #reqs["pt_quantity"].wait()
@@ -228,9 +234,11 @@ def compute(state, comm):
             #reqs["divgd_quantity"] = comm.start_halo_update(
             #    state.divgd_quantity, n_points=utils.halo
             #)
+            fv3util.communicator.regress_arrays('dyncore before halo update divgd', state.divgd.data)
             comm.halo_update(
                 state.divgd_quantity, n_points=utils.halo
             )
+            fv3util.communicator.regress_arrays('dyncore after halo update divgd', state.divgd.data)
         if not hydrostatic:
             if it == 0:
                 #reqs["gz_quantity"].wait()
@@ -314,7 +322,9 @@ def compute(state, comm):
         )
 
         for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
+            fv3util.communicator.regress_arrays('dyncore before halo update ' + halovar, state.__getattribute__(halovar).data)
             comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
+            fv3util.communicator.regress_arrays('dyncore after halo update ' + halovar, state.__getattribute__(halovar).data)
 
         # Not used unless we implement other betas and alternatives to nh_p_grad
         # if spec.namelist.d_ext > 0:
@@ -365,7 +375,9 @@ def compute(state, comm):
             #reqs["zh_quantity"] = comm.start_halo_update(
             #    state.zh_quantity, n_points=utils.halo
             #)
+            fv3util.communicator.regress_arrays('dyncore before halo update zh', state.zh.data)
             comm.halo_update(state.zh_quantity, n_points=utils.halo)
+            fv3util.communicator.regress_arrays('dyncore after halo update zh', state.zh.data)
             if grid.npx == grid.npy:
                 #reqs["pkc_quantity"] = comm.start_halo_update(
                 #    state.pkc_quantity, n_points=2
@@ -457,4 +469,4 @@ def compute(state, comm):
                 n_con,
                 dt,
             )
-    #fv3util.communicator.save_regression(regression_file)
+    fv3util.communicator.save_regression(regression_file)
