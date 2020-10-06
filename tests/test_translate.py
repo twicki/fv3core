@@ -295,10 +295,12 @@ def test_parallel_savepoint(
     #        )
     #    except Exception as error:
     #        print(error)
+    sys.stdout.flush()
+    MPI.COMM_WORLD.Barrier()
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, f"No tests passed"
     sys.stdout.flush()
-    #MPI.COMM_WORLD.Barrier()
+    
 
 @contextlib.contextmanager
 def _subtest(failure_list, subtests, **kwargs):
