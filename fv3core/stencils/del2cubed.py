@@ -42,20 +42,22 @@ def copy_column(A: sd):
 ##
 ## corner_fill
 ## Subroutine that copies/fills in the appropriate corner values for qdel
+#@utils.stencil()
+#def sw_corner_fill( Q: sd, alpha: float ):
+#    with computation(PARALLEL), interval(...):
+#            Q = (Q + Q[-1,0,0] + Q[0,-1,0]) * alpha
+
 @utils.stencil()
 def sw_corner_fill( Q: sd, alpha: float ):
+    from __splitters__ import i_start, j_start
+
     with computation(PARALLEL), interval(...):
+        with parallel(region[i_start+1, j_start+1,:]):
             Q = (Q + Q[-1,0,0] + Q[0,-1,0]) * alpha
-
-@utils.stencil()
-def sw_corner_fill1( Q: sd ):
-    with computation(PARALLEL), interval(...):
+        with parallel(region[i_start, j_start+1,:]):
             Q = Q[1,0,0]
-
-@utils.stencil()
-def sw_corner_fill2( Q: sd ):
-    with computation(PARALLEL), interval(...):
-            Q = Q[0,1,0]
+        with parallel(region[i_start+1, j_start,:]):
+            Q = Q[-1,1,0]
 
 @utils.stencil()
 def se_corner_fill( Q: sd, alpha: float ):
@@ -88,13 +90,9 @@ def compute(qdel, nmax, cd, km):
         origin = (grid.is_ - nt, grid.js - nt, 0)
 
         # Fill in appropriate corner values
-        if grid.sw_corner:
-            sw_corner_fill( qdel, r3, origin=(grid.is_,grid.js,0), domain=grid.corner_domain() )
-        #    qdel[grid.is_, grid.js, :] = (qdel[grid.is_, grid.js, :] + qdel[grid.is_ - 1, grid.js, :] + qdel[grid.is_, grid.js - 1, :]) * r3
-            sw_corner_fill1( qdel, origin=(grid.is_-1,grid.js,0), domain=grid.corner_domain() )
-            #qdel[grid.is_ - 1, grid.js, :] = qdel[grid.is_, grid.js, :]
-            sw_corner_fill2( qdel, origin=(grid.is_,grid.js-1,0), domain=grid.corner_domain() )
-            #qdel[grid.is_, grid.js - 1, :] = qdel[grid.is_, grid.js, :]
+        sw_corner_fill( qdel, r3, origin=(grid.is_-1,grid.js-1,0), domain=(2,2,grid.npz),
+                        splitters=grid.splitters )
+        
         if grid.se_corner:
             se_corner_fill( qdel, r3, origin=(grid.ie,grid.js,0), domain=grid.corner_domain() )
             #qdel[grid.ie, grid.js, :] = ( qdel[grid.ie, grid.js, :] + qdel[grid.ie + 1, grid.js, :] + qdel[grid.ie, grid.js - 1, :]) * r3
