@@ -187,7 +187,7 @@ def compute(state, comm):
                 #reqs["gz_quantity"] = comm.start_halo_update(
                 #    state.gz_quantity, n_points=utils.halo
                 #)
-                 fv3util.communicator.regress_arrays('dyncore before halo update gz', state.gz.data)
+                fv3util.communicator.regress_arrays('dyncore before halo update gz', state.gz.data)
                 comm.halo_update(state.gz_quantity, n_points=utils.halo)
                 fv3util.communicator.regress_arrays('dyncore after halo update gz', state.gz.data)
         if it == 0:
