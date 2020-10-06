@@ -122,29 +122,23 @@ def compute(state, comm):
     ms = max(1, spec.namelist.m_split / 2.0)
     shape = state.delz.shape
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
-    regression_file = '/test_data/regression_in_dyncore' + str(grid.rank) + '.txt'
+    regression_file = '/test_data/regression_in_dyncore_unblock_' + str(grid.rank) + '.txt'
     fv3util.communicator.start_regression(regression_file)
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
-        #reqs[halovar] = comm.start_halo_update(
-        #    state.__getattribute__(halovar), n_points=utils.halo
-        #)
         fv3util.communicator.regress_arrays('dyncore before halo update ' + halovar, state.__getattribute__(halovar).data)
-        comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
-        fv3util.communicator.regress_arrays('dyncore before halo after ' + halovar, state.__getattribute__(halovar).data)
-    #reqs_vector = comm.start_vector_halo_update(
-    #    state.u_quantity, state.v_quantity, n_points=utils.halo
-    #)
+        reqs[halovar] = comm.start_halo_update(
+            state.__getattribute__(halovar), n_points=utils.halo
+        )
     fv3util.communicator.regress_arrays('dyncore before halo update u', state.u.data)
     fv3util.communicator.regress_arrays('dyncore before halo update v', state.v.data)
-    comm.vector_halo_update(
+    reqs_vector = comm.start_vector_halo_update(
         state.u_quantity, state.v_quantity, n_points=utils.halo
     )
-    fv3util.communicator.regress_arrays('dyncore after halo update u', state.u.data)
-    fv3util.communicator.regress_arrays('dyncore after halo update v', state.v.data)
-    #reqs["q_con_quantity"].wait()
-    #reqs["cappa_quantity"].wait()
-
+    reqs["q_con_quantity"].wait()
+    reqs["cappa_quantity"].wait()
+    fv3util.communicator.regress_arrays('dyncore after halo update q_con', state.q_con.data)
+    fv3util.communicator.regress_arrays('dyncore after halo update cappa', state.cappa.data)
     state.__dict__.update(dyncore_temporaries(shape))
     if init_step:
         state.gz[:-1, :-1, :] = HUGE_R
@@ -170,12 +164,10 @@ def compute(state, comm):
         if spec.namelist.breed_vortex_inline or (it == n_split - 1):
             remap_step = True
         if not hydrostatic:
-            #reqs["w_quantity"] = comm.start_halo_update(
-            #    state.w_quantity, n_points=utils.halo
-            #)
             fv3util.communicator.regress_arrays('dyncore before halo update w', state.w.data)
-            comm.halo_update(state.w_quantity, n_points=utils.halo)
-            fv3util.communicator.regress_arrays('dyncore after halo update w', state.w.data)
+            reqs["w_quantity"] = comm.start_halo_update(
+                state.w_quantity, n_points=utils.halo
+            )
             if it == 0:
                 set_gz(
                     state.zs,
@@ -184,15 +176,15 @@ def compute(state, comm):
                     origin=grid.compute_origin(),
                     domain=(grid.nic, grid.njc, grid.npz + 1),
                 )
-                #reqs["gz_quantity"] = comm.start_halo_update(
-                #    state.gz_quantity, n_points=utils.halo
-                #)
                 fv3util.communicator.regress_arrays('dyncore before halo update gz', state.gz.data)
-                comm.halo_update(state.gz_quantity, n_points=utils.halo)
-                fv3util.communicator.regress_arrays('dyncore after halo update gz', state.gz.data)
+                reqs["gz_quantity"] = comm.start_halo_update(
+                    state.gz_quantity, n_points=utils.halo
+                )
         if it == 0:
-            #reqs["delp_quantity"].wait()
-            #reqs["pt_quantity"].wait()
+            reqs["delp_quantity"].wait()
+            reqs["pt_quantity"].wait()
+            fv3util.communicator.regress_arrays('dyncore after halo update delp', state.delp.data)
+            fv3util.communicator.regress_arrays('dyncore after halo update pt', state.pt.data)
             beta_d = 0
         else:
             beta_d = spec.namelist.beta
@@ -209,9 +201,12 @@ def compute(state, comm):
                     origin=(grid.is_ - 1, grid.js - 1, 0),
                     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
                 )
-        #reqs_vector.wait()
-        #if not hydrostatic:
-        #    reqs["w_quantity"].wait()
+        reqs_vector.wait()
+        fv3util.communicator.regress_arrays('dyncore after halo update u', state.u.data)
+        fv3util.communicator.regress_arrays('dyncore after halo update v', state.v.data)
+        if not hydrostatic:
+            reqs["w_quantity"].wait()
+            fv3util.communicator.regress_arrays('dyncore after halo update w', state.w.data)
 
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
@@ -231,17 +226,14 @@ def compute(state, comm):
         )
 
         if spec.namelist.nord > 0:
-            #reqs["divgd_quantity"] = comm.start_halo_update(
-            #    state.divgd_quantity, n_points=utils.halo
-            #)
             fv3util.communicator.regress_arrays('dyncore before halo update divgd', state.divgd.data)
-            comm.halo_update(
+            reqs["divgd_quantity"] = comm.start_halo_update(
                 state.divgd_quantity, n_points=utils.halo
             )
-            fv3util.communicator.regress_arrays('dyncore after halo update divgd', state.divgd.data)
         if not hydrostatic:
             if it == 0:
-                #reqs["gz_quantity"].wait()
+                reqs["gz_quantity"].wait()
+                fv3util.communicator.regress_arrays('dyncore after halo update gz', state.gz.data)
                 cp.copy_stencil(
                     state.gz,
                     state.zh,
@@ -280,19 +272,17 @@ def compute(state, comm):
             )
 
         pgradc.compute(state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2)
-        #reqc_vector = comm.start_vector_halo_update(
-        #    state.uc_quantity, state.vc_quantity, n_points=utils.halo
-        # )
         fv3util.communicator.regress_arrays('dyncore before halo update uc', state.uc.data)
         fv3util.communicator.regress_arrays('dyncore before halo update vc', state.vc.data)
-        comm.vector_halo_update(
+        reqc_vector = comm.start_vector_halo_update(
             state.uc_quantity, state.vc_quantity, n_points=utils.halo
         )
+        if spec.namelist.nord > 0:
+            reqs["divgd_quantity"].wait()
+            fv3util.communicator.regress_arrays('dyncore after halo update divgd', state.divgd.data)
+        reqc_vector.wait()
         fv3util.communicator.regress_arrays('dyncore after halo update uc', state.uc.data)
         fv3util.communicator.regress_arrays('dyncore after halo update vc', state.vc.data)
-        #if spec.namelist.nord > 0:
-        #    reqs["divgd_quantity"].wait()
-        #reqc_vector.wait()
         state.nord_v, state.damp_vt = d_sw.compute(
             state.vt,
             state.delp,
@@ -324,7 +314,6 @@ def compute(state, comm):
         for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
             fv3util.communicator.regress_arrays('dyncore before halo update ' + halovar, state.__getattribute__(halovar).data)
             comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
-            fv3util.communicator.regress_arrays('dyncore after halo update ' + halovar, state.__getattribute__(halovar).data)
 
         # Not used unless we implement other betas and alternatives to nh_p_grad
         # if spec.namelist.d_ext > 0:
@@ -371,33 +360,33 @@ def compute(state, comm):
                 state.peln,
                 state.wsd,
             )
-
-            #reqs["zh_quantity"] = comm.start_halo_update(
-            #    state.zh_quantity, n_points=utils.halo
-            #)
             fv3util.communicator.regress_arrays('dyncore before halo update zh', state.zh.data)
-            comm.halo_update(state.zh_quantity, n_points=utils.halo)
-            fv3util.communicator.regress_arrays('dyncore after halo update zh', state.zh.data)
+            reqs["zh_quantity"] = comm.start_halo_update(
+                state.zh_quantity, n_points=utils.halo
+            )
+            fv3util.communicator.regress_arrays('dyncore before halo update pkc', state.pkc.data)
             if grid.npx == grid.npy:
-                #reqs["pkc_quantity"] = comm.start_halo_update(
-                #    state.pkc_quantity, n_points=2
-                #)
-                comm.halo_update(state.pkc_quantity, n_points=2)
+                reqs["pkc_quantity"] = comm.start_halo_update(
+                    state.pkc_quantity, n_points=2
+                )
             else:
-                #reqs["pkc_quantity"] = comm.start_halo_update(
-                #    state.pkc_quantity, n_points=utils.halo
-                #)
-                comm.halo_update(state.pkc_quantity, n_points=utils.halo)
+                reqs["pkc_quantity"] = comm.start_halo_update(
+                    state.pkc_quantity, n_points=utils.halo
+                )
             if remap_step:
                 pe_halo.compute(state.pe, state.delp, state.ptop)
             if spec.namelist.use_logp:
                 raise Exception("unimplemented namelist option use_logp=True")
             else:
                 pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
-        #if not hydrostatic:
-        #    #reqs["zh_quantity"].wait()
-        #    #if grid.npx != grid.npy:
-        #    #    reqs["pkc_quantity"].wait()
+        if not hydrostatic:
+            reqs["zh_quantity"].wait()
+            fv3util.communicator.regress_arrays('dyncore after halo update zh', state.zh.data)
+
+            if grid.npx != grid.npy:
+                reqs["pkc_quantity"].wait()
+                fv3util.communicator.regress_arrays('dyncore after halo update pkc', state.pkc.data)
+
         if not hydrostatic:
             basic.multiply_constant(
                 state.zh,
@@ -406,8 +395,8 @@ def compute(state, comm):
                 origin=(grid.is_ - 2, grid.js - 2, 0),
                 domain=(grid.nic + 4, grid.njc + 4, grid.npz + 1),
             )
-            #if grid.npx == grid.npy:
-            #    reqs["pkc_quantity"].wait()
+            if grid.npx == grid.npy:
+                reqs["pkc_quantity"].wait()
             if spec.namelist.beta != 0:
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"
@@ -439,10 +428,7 @@ def compute(state, comm):
             )
 
         if it != n_split - 1:
-            #reqs_vector = comm.start_vector_halo_update(
-            #    state.u_quantity, state.v_quantity, n_points=utils.halo
-            #)
-            comm.vector_halo_update(
+            reqs_vector = comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=utils.halo
             )
         else:
@@ -452,10 +438,12 @@ def compute(state, comm):
                 comm.synchronize_vector_interfaces(state.u_quantity, state.v_quantity)
                 fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update u', state.u.data)
                 fv3util.communicator.regress_arrays('dyncore after synchronize_vector_interfaces halo update v', state.v.data)
+
     if n_con != 0 and spec.namelist.d_con > 1.0e-5:
         nf_ke = min(3, spec.namelist.nord + 1)
-
+        fv3util.communicator.regress_arrays('dyncore before halo update heat source', state.heat_source.data)
         comm.halo_update(state.heat_source_quantity, n_points=utils.halo)
+        fv3util.communicator.regress_arrays('dyncore after halo update heat source', state.heat_source.data)
         cd = constants.CNST_0P20 * grid.da_min
         del2cubed.compute(state.heat_source, nf_ke, cd, grid.npz)
         if not hydrostatic:
@@ -469,4 +457,3 @@ def compute(state, comm):
                 n_con,
                 dt,
             )
-    fv3util.communicator.save_regression(regression_file)
