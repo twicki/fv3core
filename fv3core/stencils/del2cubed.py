@@ -33,23 +33,12 @@ def copy_row(A: sd):
         A0 = A
         A = A0[1, 0, 0]
 
-@utils.stencil()
-def copy_column(A: sd):
-    with computation(PARALLEL), interval(...):
-        A0 = A
-        A = A0[0, 1, 0]
-
 ##
 ## corner_fill
 ## Subroutine that copies/fills in the appropriate corner values for qdel
-#@utils.stencil()
-#def sw_corner_fill( Q: sd, alpha: float ):
-#    with computation(PARALLEL), interval(...):
-#            Q = (Q + Q[-1,0,0] + Q[0,-1,0]) * alpha
-
 @utils.stencil()
-def sw_corner_fill( Q: sd, alpha: float ):
-    from __splitters__ import i_start, j_start
+def corner_fill( Q: sd, alpha: float ):
+    from __splitters__ import i_start, j_start, i_end, j_end
 
     with computation(PARALLEL), interval(...):
         with parallel(region[i_start+1, j_start+1,:]):
@@ -58,21 +47,18 @@ def sw_corner_fill( Q: sd, alpha: float ):
             Q = Q[1,0,0]
         with parallel(region[i_start+1, j_start,:]):
             Q = Q[-1,1,0]
-
-@utils.stencil()
-def se_corner_fill( Q: sd, alpha: float ):
-    with computation(PARALLEL), interval(...):
+        with parallel(region[i_end+1, j_start+1,:]):
             Q = (Q + Q[1,0,0] + Q[0,-1,0]) * alpha
-
-@utils.stencil()
-def nw_corner_fill( Q: sd, alpha: float ):
-    with computation(PARALLEL), interval(...):
-            Q = (Q + Q[-1,0,0] + Q[0,1,0]) * alpha
-
-@utils.stencil()
-def ne_corner_fill( Q: sd, alpha: float ):
-    with computation(PARALLEL), interval(...):
+        with parallel(region[i_end+1, j_end+1,:]):
             Q = (Q + Q[1,0,0] + Q[0,1,0]) * alpha
+        with parallel(region[i_end+2, j_start+1,:],region[i_end+2, j_end+1,:]):
+            Q = Q[-1,0,0]
+        with parallel(region[i_end+1, j_end+2,:]):
+            Q = Q[0,-1,0]
+        with parallel(region[i_start+1, j_end+1,:]):
+            Q = (Q + Q[-1,0,0] + Q[0,1,0]) * alpha
+        with parallel(region[i_end+1, j_start,:]):
+            Q = Q[0,1,0]
 
 def compute(qdel, nmax, cd, km):
     grid = spec.grid
@@ -90,23 +76,10 @@ def compute(qdel, nmax, cd, km):
         origin = (grid.is_ - nt, grid.js - nt, 0)
 
         # Fill in appropriate corner values
-        sw_corner_fill( qdel, r3, origin=(grid.is_-1,grid.js-1,0), domain=(2,2,grid.npz),
-                        splitters=grid.splitters )
+        corner_fill( qdel, r3, origin=(grid.is_-1,grid.js-1,0), domain=(grid.nic+2,grid.njc+2,grid.npz),
+                     splitters=grid.splitters )
         
-        if grid.se_corner:
-            se_corner_fill( qdel, r3, origin=(grid.ie,grid.js,0), domain=grid.corner_domain() )
-            #qdel[grid.ie, grid.js, :] = ( qdel[grid.ie, grid.js, :] + qdel[grid.ie + 1, grid.js, :] + qdel[grid.ie, grid.js - 1, :]) * r3
-            qdel[grid.ie + 1, grid.js, :] = qdel[grid.ie, grid.js, :]
-            copy_column(qdel, origin=(grid.ie, grid.js - 1, 0), domain=grid.corner_domain())
-
-        if grid.ne_corner:
-            ne_corner_fill( qdel, r3, origin=(grid.ie,grid.je,0), domain=grid.corner_domain() )
-            #qdel[grid.ie, grid.je, :] = (qdel[grid.ie, grid.je, :] + qdel[grid.ie + 1, grid.je, :] + qdel[grid.ie, grid.je + 1, :]) * r3
-            qdel[grid.ie + 1, grid.je, :] = qdel[grid.ie, grid.je, :]
-            qdel[grid.ie, grid.je + 1, :] = qdel[grid.ie, grid.je, :]
         if grid.nw_corner:
-            nw_corner_fill( qdel, r3, origin=(grid.is_,grid.je,0), domain=grid.corner_domain() )
-            #qdel[grid.is_, grid.je, :] = (qdel[grid.is_, grid.je, :] + qdel[grid.is_ - 1, grid.je, :] + qdel[grid.is_, grid.je + 1, :]) * r3
             copy_row(qdel, origin=(grid.is_ - 1, grid.je, 0), domain=grid.corner_domain())
             qdel[grid.is_, grid.je + 1, :] = qdel[grid.is_, grid.je, :]
 
