@@ -4,7 +4,7 @@ import copy
 import functools
 import logging
 import math
-from typing import Callable, Tuple, Union
+from typing import Callable, Tuple, Union, Dict, List
 
 import gt4py as gt
 import gt4py.gtscript as gtscript
@@ -354,11 +354,11 @@ def k_split_run_dataslice(
     grid.npz = num_k
 
 
-def get_kstarts(column_info, npz):
+def get_kstarts(column_info: Dict[str, List[float]], npz: int):
     compare = None
     kstarts = []
     for k in range(npz):
-        column_vals = {}
+        column_vals: Dict[str, float] = {}
         for q, v in column_info.items():
             if k < len(v):
                 column_vals[q] = v[k]
@@ -371,9 +371,14 @@ def get_kstarts(column_info, npz):
     return kstarts
 
 
-def k_split_run(func, data, k_indices, splitvars_values):
+def k_split_run(
+    func : Callable[..., None],
+    data: Dict[str, Union[float, int, sd]],
+    k_indices: List[Tuple[int, int]],
+    splitvars_values: Dict[str, List[float]]
+):
     for ki, nk in k_indices:
-        splitvars = {}
+        splitvars: Dict[str, float] = {}
         for name, value_array in splitvars_values.items():
             splitvars[name] = value_array[ki]
         data.update(splitvars)

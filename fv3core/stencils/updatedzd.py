@@ -201,10 +201,13 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     for varname in ["zh", "crx_adv", "cry_adv", "xfx_adv", "yfx_adv", "ra_x", "ra_y"]:
         data[varname] = locals()[varname]
 
-    col = {"ndif": ndif, "damp": damp_vtd}
+    # col = {"ndif": ndif, "damp": damp_vtd}
 
     kstarts = utils.get_kstarts(col, grid.npz + 1)
-    utils.k_split_run(column_calls, data, kstarts, col)
+    # utils.k_split_run(column_calls, data, kstarts, col)
+    # 1. Change ndif and damp_vtd to Fields
+    # 2. Call column_calls directly
+    column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp_vtd)
     out(
         zs,
         zh,
@@ -216,8 +219,19 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
 
 
 def column_calls(
-    zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp, kstart, nk
+    zh: sd,
+    crx_adv: sd,
+    cry_adv: sd,
+    xfx_adv: sd,
+    yfx_adv: sd,
+    ra_x: sd,
+    ra_y: sd,
+    ndif: Field[float],
+    damp: Field[float],
+    kstart: int,
+    nk: int,
 ):
+    # 3. Make this loop over all k
     grid = spec.grid
     default_origin = (grid.isd, grid.jsd, kstart)
     compute_origin = (grid.is_, grid.js, kstart)
@@ -243,7 +257,8 @@ def column_calls(
             kstart=kstart,
             nk=nk,
         )
-        delnflux.compute_no_sg(z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk)
+        # 4. Add loop over k here and call delnflux with e.g. ndif[0, 0, k], ...
+        delnflux.compute_no_sg(z2, fx2, fy2, ndif[0, 0, k], damp[0, 0, k], wk, kstart=kstart, nk=nk)
         zh_damp_stencil(
             grid.area,
             z2,

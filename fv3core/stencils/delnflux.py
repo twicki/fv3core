@@ -120,7 +120,9 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
+def compute_no_sg(q: sd, fx2: sd, fy2: sd, nord: float, damp_c: float, d2: sd,
+    kstart: int=0, nk: int=None, mass =None
+):
     grid = spec.grid
     nord = int(nord)
     i1 = grid.is_ - 1 - nord
