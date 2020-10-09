@@ -38,8 +38,6 @@ def state_inputs(*arg_specs):
                 else:
                     namespace_kwargs[arg_name] = state[standard_name].storage
                     namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
-            kwargs["exec_info"] = {}
-            kwargs["validate_args"] = False
             func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
 
         return wrapped
@@ -94,6 +92,8 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
             kwargs["splitters"] = kwargs.get(
                 "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
             )
+            kwargs["exec_info"] = {}
+            kwargs["validate_args"] = False
             return stencils[key](*args, **kwargs)
 
         return wrapped
