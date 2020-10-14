@@ -7,6 +7,7 @@ import numpy
 import numpy as np
 import xarray as xr
 import yaml
+import os
 from fv3gfs.util import (
     X_DIMS,
     Y_DIMS,
@@ -57,7 +58,7 @@ def transpose(state, dims, npz, npx, npy):
                     origin=(quantity.origin[0], quantity.origin[1], 0),
                     extent=(quantity.extent[0], quantity.extent[1], npz),
                 )
-                quantity_3d.metadata.gt4py_backend = "numpy"
+                quantity_3d.metadata.gt4py_backend = fv3core.get_backend()
                 return_state[name] = quantity_3d.transpose(dims)
             elif len(quantity.storage.shape) == 1:
                 data_3d = numpy.tile(quantity.data, (npx + 6, npy + 6, 1))
@@ -68,7 +69,7 @@ def transpose(state, dims, npz, npx, npy):
                     origin=(0, 0, quantity.origin[0]),
                     extent=(npx, npy, quantity.extent[0]),
                 )
-                quantity_3d.metadata.gt4py_backend = "numpy"
+                quantity_3d.metadata.gt4py_backend = fv3core.get_backend()
                 return_state[name] = quantity_3d.transpose(dims)
             else:
                 return_state[name] = quantity.transpose(dims)
@@ -118,16 +119,16 @@ if __name__ == "__main__":
     spec.set_namelist("input.nml")
     dt_atmos = spec.namelist.dt_atmos
 
+    # set backend
+    fv3core.set_backend("numpy")
+
     # get another namelist for the communicator??
     nml2 = yaml.safe_load(
         open("/fv3core/comparison/wrapped/config/c12_6ranks_standard.yml", "r")
     )["namelist"]
 
     sizer = SubtileGridSizer.from_namelist(nml2)
-    allocator = QuantityFactory.from_backend(sizer, "numpy")
-
-    # set backend
-    fv3core.utils.gt4py_utils.backend = "numpy"
+    allocator = QuantityFactory.from_backend(sizer, fv3core.get_backend())
 
     # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
@@ -245,11 +246,18 @@ if __name__ == "__main__":
         extent=(spec.namelist.npx - 1, spec.namelist.npy - 1, spec.namelist.npz),
     )
 
-    turbulent_kinetic_energy.metadata.gt4py_backend = "numpy"
-    u_tendency.metadata.gt4py_backend = "numpy"
-    v_tendency.metadata.gt4py_backend = "numpy"
+    turbulent_kinetic_energy.metadata.gt4py_backend = fv3core.get_backend()
+    u_tendency.metadata.gt4py_backend = fv3core.get_backend()
+    v_tendency.metadata.gt4py_backend = fv3core.get_backend()
 
     n_tracers = 6
+
+    if os.environ.get('ENABLE_STENCIL_REPORT'):
+        OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stencil_report")
+        if os.path.exists(OUTPUT_DIR):
+            os.rmtree(OUTPUT_DIR)
+        os.mkdir(OUTPUT_DIR)
+        fv3core.enable_stencil_report(path=OUTPUT_DIR, save_args=False, save_report=True)
 
     # Step through time
     for i in range(wrapper.get_step_count()):

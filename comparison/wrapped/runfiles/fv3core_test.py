@@ -7,6 +7,7 @@ import numpy
 import numpy as np
 import xarray as xr
 import yaml
+import os
 from fv3gfs.util import (
     X_DIMS,
     Y_DIMS,
@@ -56,7 +57,7 @@ def transpose(state, dims, npz, npx, npy):
                     origin=(quantity.origin[0], quantity.origin[1], 0),
                     extent=(quantity.extent[0], quantity.extent[1], npz),
                 )
-                quantity_3d.metadata.gt4py_backend = "numpy"
+                quantity_3d.metadata.gt4py_backend = fv3core.get_backend()
                 return_state[name] = quantity_3d.transpose(dims)
             elif len(quantity.storage.shape) == 1:
                 data_3d = numpy.tile(quantity.data, (npx + 6, npy + 6, 1))
@@ -67,7 +68,7 @@ def transpose(state, dims, npz, npx, npy):
                     origin=(0, 0, quantity.origin[0]),
                     extent=(npx, npy, quantity.extent[0]),
                 )
-                quantity_3d.metadata.gt4py_backend = "numpy"
+                quantity_3d.metadata.gt4py_backend = fv3core.get_backend()
                 return_state[name] = quantity_3d.transpose(dims)
             else:
                 return_state[name] = quantity.transpose(dims)
@@ -249,6 +250,13 @@ if __name__ == "__main__":
     v_tendency.metadata.gt4py_backend = fv3core.get_backend()
 
     n_tracers = 6
+
+    if os.environ.get('ENABLE_STENCIL_REPORT'):
+        OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stencil_report")
+        if os.path.exists(OUTPUT_DIR):
+            os.rmtree(OUTPUT_DIR)
+        os.mkdir(OUTPUT_DIR)
+        fv3core.enable_stencil_report(path=OUTPUT_DIR, save_args=False, save_report=True)
 
     # Step through time
     for i in range(wrapper.get_step_count()):
