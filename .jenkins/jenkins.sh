@@ -108,6 +108,7 @@ fi
 echo "PRIOR TO JOB"
 echo $LD_LIBRARY_PATH
 echo $PATH
+export PATH=/project/s1053/install/gcloud/bin/:$PATH
 echo `ls -lh /project/s1053/install/modulefiles/`
 echo `ls -lh /project/s1053/install/modulefiles/gcloud`
 module load daint-gpu
