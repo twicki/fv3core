@@ -22,9 +22,10 @@ def fix_tracer(
 ):
     # reset fields
     with computation(PARALLEL), interval(...):
-        zfix = 0
         lower_fix = 0.0
         upper_fix = 0.0
+    with computation(FORWARD), interval(...):
+        zfix = 0
         sum0 = 0.0
         sum1 = 0.0
     # fix_top:
@@ -70,7 +71,7 @@ def fix_tracer(
         dm = q * dp
         dm_pos = dm if dm > 0.0 else 0.0
     # fix_bottom:
-    with computation(PARALLEL), interval(-1, None):
+    with computation(FORWARD), interval(-1, None):
         # the 2nd-to-last layer borrowed from this one, account for that here
         if lower_fix[0, 0, -1] != 0.0:
             q = q - (lower_fix[0, 0, -1] / dp)
@@ -94,9 +95,9 @@ def fix_tracer(
         sum1 += dm_pos
     # final_check
     with computation(PARALLEL), interval(1, None):
-        fac = sum0 / sum1 if sum0 > 0.0 else 0.0
-        if zfix > 0 and fac > 0.0:
-            q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
+        tmp_fac = sum0 / sum1 if sum0 > 0.0 else 0.0
+        if zfix > 0 and tmp_fac > 0.0:
+            q = tmp_fac * dm / dp if tmp_fac * dm / dp > 0.0 else 0.0
 
 
 def compute(dp2, tracers, im, km, nq, jslice):
