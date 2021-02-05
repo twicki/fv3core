@@ -63,9 +63,7 @@ def write_to_json(
     the elapsed times and the experimental setup
     """
     now = datetime.now()
-    sha = git.Repo(
-        pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
-    ).head.object.hexsha
+    sha = "idk"
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     experiment = {}
