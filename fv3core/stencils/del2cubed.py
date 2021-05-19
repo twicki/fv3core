@@ -38,36 +38,32 @@ def update_q(
 # ------------------------------------------------------------------------
 def corner_fill(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
-
     # Fills the same scalar value into three locations in q for each corner
     with computation(PARALLEL), interval(...):
         with horizontal(region[i_start, j_start]):
             q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, -1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_start - 1, j_start]):
-            q = q[1, 0, 0]
+            q = (q[1, 0, 0] + q[0, 0, 0] + q[1, -1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_start, j_start - 1]):
-            q = q[0, 1, 0]
-
+            q = (q[0, 1, 0] + q[-1, 1, 0] + q[0, 0, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end, j_start]):
             q = (q[0, 0, 0] + q[1, 0, 0] + q[0, -1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end + 1, j_start]):
-            q = q[-1, 0, 0]
+            q = (q[-1, 0, 0] + q[0, 0, 0] + q[-1, -1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end, j_start - 1]):
-            q = q[0, 1, 0]
-
+            q = (q[0, 1, 0] + q[1, 1, 0] + q[0, 0, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end, j_end]):
             q = (q[0, 0, 0] + q[1, 0, 0] + q[0, 1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end + 1, j_end]):
-            q = q[-1, 0, 0]
+            q = (q[-1, 0, 0] + q[0, 0, 0] + q[-1, 1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_end, j_end + 1]):
-            q = q[0, -1, 0]
-
+            q = (q[0, -1, 0] + q[1, -1, 0] + q[0, 0, 0]) * (1.0 / 3.0)
         with horizontal(region[i_start, j_end]):
             q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, 1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_start - 1, j_end]):
-            q = q[1, 0, 0]
+            q = (q[1, 0, 0] + q[0, 0, 0] + q[1, 1, 0]) * (1.0 / 3.0)
         with horizontal(region[i_start, j_end + 1]):
-            q = q[0, -1, 0]
+            q = (q[0, -1, 0] + q[-1, -1, 0] + q[0, 0, 0]) * (1.0 / 3.0)
 
 
 class HyperdiffusionDamping:
